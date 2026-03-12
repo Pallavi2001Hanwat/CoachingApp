@@ -25,176 +25,369 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-  
 
 
-async function Login(req: Request, res: Response): Promise<void> {
+
+
+async function LoginFromWeb(req: Request, res: Response): Promise<void> {
   try {
-    const { Email, Phone } = req.body;
+    const { Email, Phone, Password } = req.body;
 
     if (!Email && !Phone) {
-       return res.status(400).json({ message: 'Please provide Email or Phone' });
+      return res.status(400).json({ message: "Please provide Email or Phone" });
     }
 
-    // 1️⃣ Find user (by email or Phone)
+    /* 1️⃣ Find User */
     let user;
-    if (Email) user = await UserModel.findOne({ Email });
-    if (Phone) user = await UserModel.findOne({ Phone });
 
-    // 2️⃣ Roles (agar user exist karta hai)
-    let roleNames: string[] = [];
-    if (user) {
-      const userRoles = await UserRoleModel.find({ UserId: user._id });
-      const roleIds = userRoles.map(r => r.RoleId);
-      const roles = await RoleModel.find({ _id: { $in: roleIds } });
-      roleNames = roles.map(r => r.RoleName);
-    }
-
-    // 3️⃣ Check if role is Admin or Teacher → skip OTP
-    if (roleNames.includes("Admin") || roleNames.includes("Teacher")) {
-      return  res.status(200).json({
-        message: "User Login Succesfuly need to enter pasword.",
-        user: {
-          id: user._id,
-          name: `${user.FirstName} ${user.LastName}`,
-          email: user.Email,
-          Phone: user.Phone,
-          roles: roleNames,
-        },
-        roles: roleNames
+    if (Email) {
+      user = await UserModel.findOne({
+        Email: { $regex: `^${Email}$`, $options: "i" },
       });
     }
 
-    // 4️⃣ Generate OTP
-    const Otp = otpGenerator.generate(6, {
-  upperCaseAlphabets: false,
-  lowerCaseAlphabets: false,
-  specialChars: false,
-});
+    if (Phone) {
+      user = await UserModel.findOne({ Phone });
+    }
 
-    // 5️⃣ Save OTP record
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    /* 2️⃣ Get Roles */
+
+    let roleNames: string[] = [];
+
+    const userRoles = await UserRoleModel.find({ UserId: user._id });
+    const roleIds = userRoles.map((r) => r.RoleId);
+    const roles = await RoleModel.find({ _id: { $in: roleIds } });
+
+    roleNames = roles.map((r) => r.RoleName);
+
+    const isAdminOrTeacher =
+      roleNames.includes("Admin") || roleNames.includes("Teacher");
+
+    /* 3️⃣ Password Check (Admin / Teacher only) */
+
+    if (isAdminOrTeacher) {
+      if (!Password) {
+        return res.status(400).json({
+          message: "Password is required",
+        });
+      }
+
+      const isMatch = await bcrypt.compare(Password, user.Password);
+
+      if (!isMatch) {
+        return res.status(401).json({
+          message: "Invalid password",
+        });
+      }
+    }
+
+    /* 4️⃣ Generate OTP (ALL USERS) */
+
+    const Otp = otpGenerator.generate(6, {
+      upperCaseAlphabets: false,
+      lowerCaseAlphabets: false,
+      specialChars: false,
+    });
+
     await OtpModel.create({
-      UserId: user ? user._id : null,
+      UserId: user._id,
       Email: Email || null,
       Phone: Phone || null,
       Otp,
       ExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
     });
 
-    // 6️⃣ Send OTP
+    /* 5️⃣ Send OTP */
+
     if (Email) {
       const mailOptions = {
         from: process.env.SMTP_EMAIL,
         to: Email,
-        subject: 'Your Login OTP',
+        subject: "Your Login OTP",
         html: `
-          <div style="font-family:Arial,sans-serif;">
-            <h2>Login Verification</h2>
-            <p>Hello,</p>
-            <p>Your OTP is:</p>
-            <h3 style="color:#2f6bed;">${Otp}</h3>
-            <p>It will expire in 10 minutes.</p>
-          </div>
+        <div style="font-family:Arial,sans-serif;">
+          <h2>Login Verification</h2>
+          <p>Your OTP is:</p>
+          <h3 style="color:#2f6bed;">${Otp}</h3>
+          <p>It will expire in 10 minutes.</p>
+        </div>
         `,
       };
+
       await transporter.sendMail(mailOptions);
-    } else if (Phone) {
-      await sendSms(Phone, `Your login OTP is ${Otp}. It will expire in 10 minutes.`);
     }
 
-    // 7️⃣ Response
-   return res.status(200).json({
-      message: `OTP sent successfully to ${Email ? 'email' : 'Phone'}`,
-      user: user
-        ? {
-            id: user._id,
-            name: `${user.FirstName} ${user.LastName}`,
-            email: user.Email,
-            Phone: user.Phone,
-            roles: roleNames,
-          }
-        : null,
-      roles: roleNames.length ? roleNames : null,
-      email: Email?Email:null,
-      phone:Phone?Phone:null
-    });
+    if (Phone) {
+      await sendSms(
+        Phone,
+        `Your login OTP is ${Otp}. It will expire in 10 minutes.`
+      );
+    }
 
+    /* 6️⃣ Response */
+
+    return res.status(200).json({
+      message: `OTP sent successfully to ${Email ? "Email" : "Phone"}`,
+      user: {
+        id: user._id,
+        name: `${user.FirstName} ${user.LastName}`,
+        email: user.Email,
+        phone: user.Phone,
+        roles: roleNames,
+      },
+      roles: roleNames,
+      email: Email || null,
+      phone: Phone || null,
+    });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
+    console.error("Login error:", error);
+
+    res.status(500).json({
+      message: "Internal Server Error",
+    });
   }
 }
 
-async function VerifyOtp(req: Request, res: Response): Promise<void> {
+async function LoginFromApp(req: Request, res: Response): Promise<void> {
   try {
-    const { Email, Phone, Otp } = req.body;
+    const { Email, Phone } = req.body;
 
-    if ((!Email && !Phone) || !Otp) {
-       res.status(400).json({ message: 'Email/Phone and OTP are required' });
+    if (!Email && !Phone) {
+      return res.status(400).json({ message: "Please provide Email or Phone" });
     }
 
-    // 1️⃣ Find OTP record
+    /* 1️⃣ Find User */
+    let user;
+
+    if (Email) {
+      user = await UserModel.findOne({
+        Email: { $regex: `^${Email}$`, $options: "i" },
+      });
+    }
+
+    if (Phone) {
+      user = await UserModel.findOne({ Phone });
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    /* 2️⃣ Get Roles */
+
+    let roleNames: string[] = [];
+
+    const userRoles = await UserRoleModel.find({ UserId: user._id });
+    const roleIds = userRoles.map((r) => r.RoleId);
+    const roles = await RoleModel.find({ _id: { $in: roleIds } });
+
+    roleNames = roles.map((r) => r.RoleName);
+
+    const isAdminOrTeacher =
+      roleNames.includes("Admin") || roleNames.includes("Teacher");
+
+    
+
+    /* 4️⃣ Generate OTP (ALL USERS) */
+
+    const Otp = otpGenerator.generate(6, {
+      upperCaseAlphabets: false,
+      lowerCaseAlphabets: false,
+      specialChars: false,
+    });
+
+    await OtpModel.create({
+      UserId: user._id,
+      Email: Email || null,
+      Phone: Phone || null,
+      Otp,
+      ExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
+    });
+
+    /* 5️⃣ Send OTP */
+
+    if (Email) {
+      const mailOptions = {
+        from: process.env.SMTP_EMAIL,
+        to: Email,
+        subject: "Your Login OTP",
+        html: `
+        <div style="font-family:Arial,sans-serif;">
+          <h2>Login Verification</h2>
+          <p>Your OTP is:</p>
+          <h3 style="color:#2f6bed;">${Otp}</h3>
+          <p>It will expire in 10 minutes.</p>
+        </div>
+        `,
+      };
+
+      await transporter.sendMail(mailOptions);
+    }
+
+    if (Phone) {
+      await sendSms(
+        Phone,
+        `Your login OTP is ${Otp}. It will expire in 10 minutes.`
+      );
+    }
+
+    /* 6️⃣ Response */
+
+    return res.status(200).json({
+      message: `OTP sent successfully to ${Email ? "Email" : "Phone"}`,
+      user: {
+        id: user._id,
+        name: `${user.FirstName} ${user.LastName}`,
+        email: user.Email,
+        phone: user.Phone,
+        roles: roleNames,
+      },
+      roles: roleNames,
+      email: Email || null,
+      phone: Phone || null,
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+
+    res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
+}
+
+
+ const VerifyOtp = async (req: Request, res: Response): Promise<void> => {
+  try {
+
+    const { Email, Phone, Otp } = req.body;
+
+    // 1️⃣ Validate request
+    if ((!Email && !Phone) || !Otp) {
+      res.status(400).json({
+        message: "Email/Phone and OTP are required"
+      });
+      return;
+    }
+
+    // 2️⃣ Find OTP record
     const otpRecord = await OtpModel.findOne({
       $or: [{ Email }, { Phone }],
-      Otp,
+      Otp
     });
 
     if (!otpRecord) {
-       res.status(400).json({ message: 'Invalid OTP' });
+      res.status(400).json({
+        message: "Invalid OTP"
+      });
+      return;
     }
 
-    // 2️⃣ Check expiry
+    // 3️⃣ Check OTP expiry
     if (new Date() > otpRecord.ExpiresAt) {
-       res.status(400).json({ message: 'OTP has expired' });
+      res.status(400).json({
+        message: "OTP has expired"
+      });
+      return;
     }
 
-    // 3️⃣ Find existing user
-    let user;
-    if (Email) user = await UserModel.findOne({ Email });
-    if (Phone) user = await UserModel.findOne({ Phone });
+    // 4️⃣ Find user
+    let user: any;
+
+    if (Email) {
+      user = await UserModel.findOne({
+        Email: { $regex: `^${Email}$`, $options: "i" }
+      });
+    }
+
+    if (Phone) {
+      user = await UserModel.findOne({ Phone });
+    }
 
     if (!user) {
-       res.status(404).json({ message: 'User not found. Please sign up first.' });
+      res.status(404).json({
+        message: "User not found. Please sign up first."
+      });
+      return;
     }
 
-    // 4️⃣ Fetch user roles
-    const userRoles = await UserRoleModel.find({ UserId: user._id });
+    // 5️⃣ Get user roles
+    const userRoles = await UserRoleModel.find({
+      UserId: user._id
+    });
+
     const roleIds = userRoles.map(r => r.RoleId);
-    const roles = await RoleModel.find({ _id: { $in: roleIds } });
+
+    const roles = await RoleModel.find({
+      _id: { $in: roleIds }
+    });
+
     const roleNames = roles.map(r => r.RoleName);
 
-    // 5️⃣ Generate JWT token
+    // 6️⃣ Create JWT token
     const payload = {
       userId: user._id,
       roles: roleNames,
       email: user.Email,
-      phone: user.Phone,
-   
+      phone: user.Phone
     };
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
-    // 6️⃣ Delete only the verified OTP record (safe delete)
+    const token = jwt.sign(payload, JWT_SECRET, {
+      expiresIn: JWT_EXPIRES_IN
+    });
+
+
+
+
+res.cookie('token', token, {
+  httpOnly: false,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax',
+  maxAge: 30 * 24 * 60 * 60 * 1000,
+});
+
+res.cookie('role', JSON.stringify(roleNames), {
+  httpOnly: false,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict',
+  maxAge: 30 * 24 * 60 * 60 * 1000,
+});
+
+    // 9️⃣ Delete verified OTP
     await OtpModel.deleteOne({ _id: otpRecord._id });
 
-    // 7️⃣ Response
+    // 🔟 Send response
     res.status(200).json({
-      message: 'OTP verified successfully',
+      message: "OTP verified successfully",
       user: {
         id: user._id,
         email: user.Email,
         phone: user.Phone,
         roles: roleNames.length ? roleNames : null,
-       name: user?.FirstName + user?.LastName
+        name: `${user?.FirstName || ""} ${user?.LastName || ""}`
       },
-      token,
+      token
     });
-  } catch (error) {
-    console.error('Verify OTP error:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-}
 
- async function SignUpUser(req: Request, res: Response): Promise<void> {
+  } catch (error) {
+
+    console.error("Verify OTP error:", error);
+
+    res.status(500).json({
+      message: "Internal Server Error"
+    });
+
+  }
+};
+
+async function SignUpUser(req: Request, res: Response): Promise<void> {
   try {
     const { FirstName, LastName, Email, Phone, Otp } = req.body;
 
@@ -290,7 +483,7 @@ async function VerifyOtp(req: Request, res: Response): Promise<void> {
   }
 }
 
- async function VerifyPassword(req: Request, res: Response): Promise<void> {
+async function VerifyPassword(req: Request, res: Response): Promise<void> {
   try {
     const { Email, Phone, Password } = req.body;
 
@@ -323,12 +516,12 @@ async function VerifyOtp(req: Request, res: Response): Promise<void> {
     const roles = await RoleModel.find({ _id: { $in: roleIds } });
     const roleNames = roles.map(r => r.RoleName);
 
-     // 4️⃣ Generate OTP
+    // 4️⃣ Generate OTP
     const Otp = otpGenerator.generate(6, {
-  upperCaseAlphabets: false,
-  lowerCaseAlphabets: false,
-  specialChars: false,
-});
+      upperCaseAlphabets: false,
+      lowerCaseAlphabets: false,
+      specialChars: false,
+    });
 
     // 5️⃣ Save OTP record
     await OtpModel.create({
@@ -449,7 +642,7 @@ async function AddUser(req: Request, res: Response): Promise<void> {
     // ⚠️ Duplicate key error
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern)[0];
-       res.status(400).json({
+      res.status(400).json({
         message: `${field} already exists`,
       });
     }
@@ -497,7 +690,7 @@ async function GetAllUsers(req: Request, res: Response): Promise<void> {
     });
 
     // ✅ Final response
-    res.status(200).json({success: true, message: 'Get User successfully',Users:usersWithRoles});
+    res.status(200).json({ success: true, message: 'Get User successfully', Users: usersWithRoles });
 
   } catch (error) {
     console.error('Error fetching users with roles:', error);
@@ -536,7 +729,7 @@ async function GetUserById(req: Request, res: Response): Promise<void> {
       IsTeacher: isTeacher,
     };
 
-    res.status(200).json({success: true,User:userData});
+    res.status(200).json({ success: true, User: userData });
   } catch (error) {
     console.error('Error fetching user:', error);
     res.status(500).json({ message: 'Internal Server Error' });
@@ -544,7 +737,7 @@ async function GetUserById(req: Request, res: Response): Promise<void> {
 }
 
 /* --------------------------- ✅ Update User --------------------------- */
- async function UpdateUser(req: Request, res: Response): Promise<void> {
+async function UpdateUser(req: Request, res: Response): Promise<void> {
   try {
     const { id } = req.params;
     const {
@@ -610,7 +803,7 @@ async function GetUserById(req: Request, res: Response): Promise<void> {
 }
 
 /* --------------------------- ✅ Delete User --------------------------- */
- async function DeleteUser(req: Request, res: Response): Promise<void> {
+async function DeleteUser(req: Request, res: Response): Promise<void> {
   try {
     const { id } = req.params;
     const user = await UserModel.findByIdAndDelete(id);
@@ -623,7 +816,7 @@ async function GetUserById(req: Request, res: Response): Promise<void> {
     // Remove user roles too
     await UserRoleModel.deleteMany({ UserId: id });
 
-    res.status(200).json({ success: true,message: 'User deleted successfully' });
+    res.status(200).json({ success: true, message: 'User deleted successfully' });
   } catch (error) {
     console.error('Error deleting user:', error);
     res.status(500).json({ message: 'Internal Server Error' });
@@ -654,4 +847,4 @@ const GetUserProfile = async (
     res.status(500).json({ message: 'Internal Server Error' });
   }
 };
-export default { AddUser, GetAllUsers,GetUserById,UpdateUser ,DeleteUser , Login,VerifyOtp,SignUpUser ,VerifyPassword,GetUserProfile};
+export default { AddUser, GetAllUsers, GetUserById, UpdateUser, DeleteUser, LoginFromWeb, LoginFromApp, VerifyOtp, SignUpUser, VerifyPassword, GetUserProfile };

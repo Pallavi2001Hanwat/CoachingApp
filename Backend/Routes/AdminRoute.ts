@@ -18,6 +18,8 @@ import SyllabusController from '../Controller/SyllabusController';
 import CurrentAffraisController from '../Controller/CurrentAffraisController';
 
 
+
+
 router.use(authMiddleware);
 
 /* --------------------------- ✅  User Route --------------------------- */
@@ -87,7 +89,7 @@ router.get("/get-AllTestSeries",TestSeriesController.getAllTestSeries );
 router.get("/get-TestSeriesById/:id",TestSeriesController.getTestSeriesById );
 router.put("/update-TestSeries/:id",TestSeriesController.updateTestSeries );
 router.delete("/delete-TestSeries/:id",TestSeriesController.deleteTestSeries );
-
+router.get("/get-AllTestSeriesByCategoryId/:categoryId",TestSeriesController.getTestSeriesByCategoryId );
 
 
 /* --------------------------- ✅  TestPaper Route --------------------------- */

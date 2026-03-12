@@ -24,7 +24,7 @@ const createTestPaper = async (req: AuthRequest, res: Response): Promise<void> =
       TotalQuestions,
       AttemptLimit,
       PaperLevel,
-      IsPaid,
+      
       ScheduledDate,
       Status,
     } = req.body;
@@ -55,7 +55,6 @@ const createTestPaper = async (req: AuthRequest, res: Response): Promise<void> =
       TotalQuestions,
       AttemptLimit,
       PaperLevel,
-      IsPaid,
       ScheduledDate: ScheduledDate ? new Date(ScheduledDate) : null,
       TeacherId: user._id,
       CreatedBy: user._id,
@@ -91,7 +90,7 @@ const getAllTestPapers = async (req: Request, res: Response): Promise<void> => {
       // 🔹 Join questions
       {
         $lookup: {
-          from: 'testpaperquestions', // 👈 collection name (VERY IMPORTANT)
+          from: 'testpaperquestions',
           localField: '_id',
           foreignField: 'TestPaperId',
           as: 'questions',
@@ -105,16 +104,60 @@ const getAllTestPapers = async (req: Request, res: Response): Promise<void> => {
         },
       },
 
-      // 🔹 Remove questions array (optional)
+      // 🔹 Join TestSeries
+      {
+        $lookup: {
+          from: 'testseries', // collection name (check in DB)
+          localField: 'TestSeriesId',
+          foreignField: '_id',
+          as: 'TestSeries',
+        },
+      },
+
+      // 🔹 Convert TestSeries array -> object
+      {
+        $unwind: {
+          path: '$TestSeries',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // 🔹 Join Category inside TestSeries
+      {
+        $lookup: {
+          from: 'categories', // collection name
+          localField: 'TestSeries.CategoryId',
+          foreignField: '_id',
+          as: 'Category',
+        },
+      },
+
+      // 🔹 Convert Category array -> object
+      {
+        $unwind: {
+          path: '$Category',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // 🔹 Attach Category inside TestSeries
+      {
+        $addFields: {
+          'TestSeries.Category': '$Category',
+        },
+      },
+
+      // 🔹 Remove unwanted fields
       {
         $project: {
           questions: 0,
+          Category: 0,
         },
       },
 
       // 🔹 Sort
       {
-        $sort: { createdAt: -1 },
+        $sort: { createdDate: -1 },
       },
     ]);
 
@@ -134,10 +177,20 @@ const getAllTestPapers = async (req: Request, res: Response): Promise<void> => {
 };
 
 
- const getTestPaperById = async (req: Request, res: Response): Promise<void> => {
+const getTestPaperById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const TestPaper = await TestPaperModel.findById(id).populate('TeacherId', 'FirstName LastName Email');
+
+    const TestPaper = await TestPaperModel.findById(id)
+      .populate('TeacherId', 'FirstName LastName Email') // Teacher info
+      .populate({
+        path: 'TestSeriesId',           // populate TestSeries
+        select: 'Title CategoryId',     // fields from TestSeries
+        populate: {
+          path: 'CategoryId',           // nested populate Category inside TestSeries
+          select: 'CategoryName',      // fields from Category
+        },
+      });
 
     if (!TestPaper) {
       res.status(404).json({ message: 'TestPaper not found' });
@@ -205,7 +258,7 @@ const updateTestPaper = async (req: AuthRequest, res: Response): Promise<void> =
       TotalQuestions,
       AttemptLimit,
       PaperLevel,
-      IsPaid,
+      
       ScheduledDate,
       Status
     } = req.body;
@@ -224,7 +277,6 @@ const updateTestPaper = async (req: AuthRequest, res: Response): Promise<void> =
       ...(TotalQuestions && { TotalQuestions }),
       ...(AttemptLimit && { AttemptLimit }),
       ...(PaperLevel && { PaperLevel }),
-      ...(IsPaid !== undefined && { IsPaid }),
       ...(ScheduledDate && { ScheduledDate: new Date(ScheduledDate) }),
       ...(Status && { Status }),
       updatedDate: new Date(),

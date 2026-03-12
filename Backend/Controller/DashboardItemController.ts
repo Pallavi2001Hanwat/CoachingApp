@@ -47,15 +47,28 @@ const createDashboard_Item = async (req: AuthRequest, res: Response): Promise<vo
         uploadedImageUrl = result.secure_url;
       } catch (error) {
         console.error("Error uploading image:", error);
-        return res.status(500).json({
+        res.status(500).json({
           message: 'Error uploading image to Cloudinary',
           data: null,
           error
         });
+        return;
       }
     }
 
-    // STEP 5: Create new Dashboard Item
+    // STEP 5: Determine final OrderNumber
+    let finalOrderNumber = OrderNumber;
+
+    if (finalOrderNumber === undefined || finalOrderNumber === null|| finalOrderNumber === 0) {
+      const lastItem = await Dashboard_ItemModel
+        .findOne()
+        .sort({ OrderNumber: -1 }) // Get highest OrderNumber
+        .select('OrderNumber');
+
+      finalOrderNumber = lastItem ? lastItem.OrderNumber + 1 : 1;
+    }
+
+    // STEP 6: Create new Dashboard Item
     const newDashboard_Item = new Dashboard_ItemModel({
       Title,
       Description: Description || '',
@@ -63,13 +76,13 @@ const createDashboard_Item = async (req: AuthRequest, res: Response): Promise<vo
       Type,
       Action,
       Visibility: Visibility || 'All',
-      OrderNumber: OrderNumber || 0,
+      OrderNumber: finalOrderNumber,
       Status: Status || 'Active',
       CreatedBy: user._id,
-      TeacherId : user._id,
+      TeacherId: user._id,
     });
 
-    // STEP 6: Save in DB
+    // STEP 7: Save in DB
     const savedDashboard_Item = await newDashboard_Item.save();
 
     res.status(201).json({
@@ -87,7 +100,6 @@ const createDashboard_Item = async (req: AuthRequest, res: Response): Promise<vo
     });
   }
 };
-
 
  const getAllDashboard_Items = async (req: Request, res: Response): Promise<void> => {
   try {

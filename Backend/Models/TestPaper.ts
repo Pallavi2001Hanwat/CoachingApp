@@ -14,8 +14,7 @@ export interface ITestPaper extends Document {
     AttemptLimit: number | 'Unlimited'; // ex: 1 or "Unlimited"
     PaperLevel: 'Easy' | 'Medium' | 'Hard';
 
-    IsPaid: boolean;
-
+    
     ScheduledDate?: Date; // optional
 
     TeacherId: Types.ObjectId;
@@ -53,7 +52,6 @@ const TestPaperSchema: Schema = new Schema<ITestPaper>(
             default: 'Easy',
         },
 
-        IsPaid: { type: Boolean, default: false },
 
         ScheduledDate: { type: Date, default: null },
         TeacherId: { type: Schema.Types.ObjectId, ref: 'User', required: true },

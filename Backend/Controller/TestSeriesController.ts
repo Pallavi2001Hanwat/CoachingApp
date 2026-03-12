@@ -293,7 +293,7 @@ const updateTestSeries = async (req: AuthRequest, res: Response): Promise<void> 
    if (existingTestSeries.Image) {
      const cloudinary = req.app.locals.cloudinary;
           const public_id = existingTestSeries.Image.split('/').pop()?.split('.')[0];
-          await cloudinary.uploader.destroy(`Subjects/${public_id}`);
+          await cloudinary.uploader.destroy(`TestSeries/${public_id}`);
         }
 
     // ✅ Delete the TestSeriesfrom MongoDB
