@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import TestPaperModel from '../Models/TestPaper';
 import { AuthRequest } from '../Middleware/AuthMiddleware';
 import TestPaperQuestionsModel from '../Models/TestPaperQuestions';
-
+import * as XLSX from "xlsx";
 
 const createTestPaper = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -83,6 +83,107 @@ const createTestPaper = async (req: AuthRequest, res: Response): Promise<void> =
   }
 };
 
+
+
+ const bulkCreateTestPapers = async (req: any, res: Response) => {
+  try {
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized',
+      });
+    }
+
+    // ✅ Step 1: Get TestSeriesId from params
+    const testSeriesId = req.params.testSeriesId;
+
+    if (!testSeriesId) {
+      return res.status(400).json({
+        success: false,
+        message: 'TestSeriesId is required in params',
+      });
+    }
+
+    // ✅ Step 2: Check file
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Excel file is required',
+      });
+    }
+
+    // ✅ Step 3: Read Excel file
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+
+    const rows: any[] = XLSX.utils.sheet_to_json(sheet);
+
+    if (!rows.length) {
+      return res.status(400).json({
+        success: false,
+        message: 'Excel file is empty',
+      });
+    }
+
+    // ✅ Step 4: Convert rows → DB format
+    const testPapers = rows.map((row, index) => {
+      if (
+        !row.PaperTitle ||
+        !row.DurationInMinutes ||
+        !row.TotalMarks ||
+        !row.TotalQuestions ||
+        !row.PassingMarks ||
+        !row.AttemptLimit ||
+        !row.PaperLevel
+      ) {
+        throw new Error(`Missing fields in row ${index + 1}`);
+      }
+
+      return {
+        TestSeriesId: testSeriesId, // 🔥 important
+        PaperTitle: row.PaperTitle,
+        Description: row.Description || '',
+        DurationInMinutes: Number(row.DurationInMinutes),
+        TotalMarks: Number(row.TotalMarks),
+        PassingMarks: Number(row.PassingMarks),
+        TotalQuestions: Number(row.TotalQuestions),
+        AttemptLimit: Number(row.AttemptLimit),
+        PaperLevel: row.PaperLevel,
+        ScheduledDate: row.ScheduledDate
+          ? new Date(row.ScheduledDate)
+          : null,
+        Status: row.Status || 'Active',
+
+        TeacherId: user._id,
+        CreatedBy: user._id,
+        createdDate: new Date(),
+        updatedDate: new Date(),
+      };
+    });
+
+    // ✅ Step 5: Insert in DB
+    const saved = await TestPaperModel.insertMany(testPapers);
+
+    // ✅ Step 6: Response
+    res.status(201).json({
+      success: true,
+      message: `${saved.length} Test Papers created successfully`,
+      data: saved,
+    });
+
+  } catch (error: any) {
+    console.error('Bulk create error:', error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Bulk creation failed',
+    });
+  }
+};
 
 const getAllTestPapers = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -367,6 +468,38 @@ const updateTestPaper = async (req: AuthRequest, res: Response): Promise<void> =
 };
 
 
+const deleteAllTestPapers = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+
+    // ✅ Auth check
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+   
+
+
+    // ✅ Delete all TestPapers
+    await TestPaperModel.deleteMany({});
+
+    res.status(200).json({
+      success: true,
+      message: '🔥 All TestPapers and their images deleted successfully',
+    });
+
+  } catch (error: any) {
+    console.error('❌ Error deleting all TestPapers:', error);
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete all TestPapers',
+      error: error.message,
+    });
+  }
+};
+
 const saveSelectedQuestionsToTestPaper = async (
   req: AuthRequest,
   res: Response
@@ -521,4 +654,5 @@ const saveSelectedQuestionsToTestPaper = async (
 
 export default { createTestPaper,getAllTestPapers,getTestPaperById,
   updateTestPaper,deleteTestPaper,saveSelectedQuestionsToTestPaper,
-  removeAllSelectedQuestionsFromTestPaper,getTestPaperByTestSeriesId};
+  removeAllSelectedQuestionsFromTestPaper,getTestPaperByTestSeriesId,deleteAllTestPapers,
+bulkCreateTestPapers};

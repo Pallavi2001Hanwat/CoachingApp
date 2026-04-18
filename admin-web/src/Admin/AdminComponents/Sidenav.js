@@ -35,6 +35,9 @@ const Sidenav = ({ closeSidenav }) => {
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [paperOpen, setPaperOpen] = useState(false);
   const [testOpen, setTestOpen] = useState(false);
+  const [syllabusOpen, setSyllabusOpen] = useState(false);
+  const [CurrentAffairOpen, setCurrentAffairOpen] = useState(false);
+
 
   const handleLogout = () => {
     Cookies.remove('token');
@@ -220,6 +223,21 @@ const Sidenav = ({ closeSidenav }) => {
 
               </ListItemButton>
 
+               <ListItemButton
+                component={Link}
+                to="/admin/Questions"
+                onClick={closeSidenav}
+                className="sidenav-button sidenav-subbutton"
+              >
+
+                <ListItemIcon className="sidenav-icon">
+                  <SubdirectoryArrowRight />
+                </ListItemIcon>
+
+                <ListItemText primary="Questions" />
+
+              </ListItemButton>
+
             </List>
 
           </Collapse>
@@ -371,6 +389,111 @@ const Sidenav = ({ closeSidenav }) => {
 
                 <ListItemText primary="TestPapers" />
 
+              </ListItemButton>
+
+            </List>
+
+          </Collapse>
+
+
+          {/* Syllabus Management */}
+
+          <ListItemButton
+            className="sidenav-button"
+            onClick={() => setSyllabusOpen(!syllabusOpen)}
+          >
+            <ListItemIcon className="sidenav-icon">
+              <ViewModule />
+            </ListItemIcon>
+
+            <ListItemText primary="Syllabus Management" />
+
+            {syllabusOpen ? <ExpandLess /> : <ExpandMore />}
+          </ListItemButton>
+
+          <Collapse in={syllabusOpen} timeout="auto" unmountOnExit>
+
+            <List component="div" disablePadding>
+
+              {/* Syllabus Category */}
+              <ListItemButton
+                component={Link}
+                to="/admin/SyllabusCategory"
+                onClick={closeSidenav}
+                className="sidenav-button sidenav-subbutton"
+              >
+                <ListItemIcon className="sidenav-icon">
+                  <SubdirectoryArrowRight />
+                </ListItemIcon>
+
+                <ListItemText primary="Syllabus Category" />
+              </ListItemButton>
+
+              {/* Syllabus */}
+              <ListItemButton
+                component={Link}
+                to="/admin/Syllabus"
+                onClick={closeSidenav}
+                className="sidenav-button sidenav-subbutton"
+              >
+                <ListItemIcon className="sidenav-icon">
+                  <SubdirectoryArrowRight />
+                </ListItemIcon>
+
+                <ListItemText primary="Syllabus" />
+              </ListItemButton>
+
+            </List>
+
+          </Collapse>
+
+
+
+           {/* CurrentAffair Management */}
+
+          <ListItemButton
+            className="sidenav-button"
+            onClick={() => setCurrentAffairOpen(!CurrentAffairOpen)}
+          >
+            <ListItemIcon className="sidenav-icon">
+              <ViewModule />
+            </ListItemIcon>
+
+            <ListItemText primary="CurrentAffair Management" />
+
+            {CurrentAffairOpen ? <ExpandLess /> : <ExpandMore />}
+          </ListItemButton>
+
+          <Collapse in={CurrentAffairOpen} timeout="auto" unmountOnExit>
+
+            <List component="div" disablePadding>
+
+              {/* Daily CurrentAffair  */}
+              <ListItemButton
+                component={Link}
+                to="/admin/DailyCurrentAffair"
+                onClick={closeSidenav}
+                className="sidenav-button sidenav-subbutton"
+              >
+                <ListItemIcon className="sidenav-icon">
+                  <SubdirectoryArrowRight />
+                </ListItemIcon>
+
+                <ListItemText primary="Daily CurrentAffair" />
+              </ListItemButton>
+
+              {/* Syllabus */}
+              <ListItemButton
+                component={Link}
+                to="/admin/MonthlyCurrentAffair"
+                onClick={closeSidenav}
+                className="sidenav-button sidenav-subbutton"
+              >
+                <ListItemIcon className="sidenav-icon">
+                  <SubdirectoryArrowRight />
+                </ListItemIcon>
+
+                <ListItemText primary="MonthlyCurrentAffair" />
               </ListItemButton>
 
             </List>

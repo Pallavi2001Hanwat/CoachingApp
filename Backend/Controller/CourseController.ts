@@ -338,6 +338,79 @@ const updateCourse = async (req: AuthRequest, res: Response): Promise<void> => {
   }
 };
 
+const deleteAllCourses = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+
+    // ✅ Authentication check
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    // ✅ Role check
+    const allowedRoles = ['Admin', 'Teacher'];
+    const hasAccess = req.roles?.some((role) => allowedRoles.includes(role));
+
+    if (!hasAccess) {
+      res.status(403).json({
+        success: false,
+        message: 'Access denied: Only Admin or Teacher can delete courses'
+      });
+      return;
+    }
+
+    let courses;
+
+    // ✅ Admin → delete ALL courses
+    if (req.roles?.includes('Admin')) {
+      courses = await CourseModel.find({});
+    } 
+    // ✅ Teacher → delete only own courses
+    else {
+      courses = await CourseModel.find({ TeacherId: user._id });
+    }
+
+    if (!courses || courses.length === 0) {
+      res.status(404).json({
+        success: false,
+        message: 'No courses found to delete'
+      });
+      return;
+    }
+
+    const cloudinary = req.app.locals.cloudinary;
+
+    // ✅ Delete all images from Cloudinary
+    for (const course of courses) {
+      if (course.Image) {
+        const public_id = course.Image.split('/').pop()?.split('.')[0];
+        await cloudinary.uploader.destroy(`Courses/${public_id}`);
+      }
+    }
+
+    // ✅ Delete from DB
+    if (req.roles?.includes('Admin')) {
+      await CourseModel.deleteMany({});
+    } else {
+      await CourseModel.deleteMany({ TeacherId: user._id });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: '✅ All courses and associated images deleted successfully',
+    });
+
+  } catch (error: any) {
+    console.error('❌ Error deleting all courses:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete courses',
+      error: error.message,
+    });
+  }
+};
+
 const AddSubjectToCourse = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
@@ -546,4 +619,4 @@ const getCourseSubjects = async (req: Request, res: Response) => {
 
 export default { createCourse,getAllCourses,getCourseById,updateCourse,
   deleteCourse,AddSubjectToCourse,getAll_Paid_CoursesByCategoryId,getAll_Free_Courses,
-  getAllActiveCourses,getCourseSubjects};
+  getAllActiveCourses,getCourseSubjects,deleteAllCourses};

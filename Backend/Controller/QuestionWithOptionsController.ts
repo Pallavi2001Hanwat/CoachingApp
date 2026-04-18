@@ -3,9 +3,14 @@ import QuestionModel from '../Models/Question';
 import { AuthRequest } from '../Middleware/AuthMiddleware';
 import QuestionOptionModel from '../Models/QuestionOption';
 import TestPaperQuestionModel from '../Models/TestPaperQuestions';
+import SubjectModel from '../Models/Subject';
+import ChapterModel from '../Models/Chapter';
+import TopicModel from '../Models/TopicOrClass';
+
+
 import TestPaperModel from '../Models/TestPaper';
-
-
+import mongoose from "mongoose";
+import * as XLSX from 'xlsx';
 
 const createQuestionWithOption = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -147,6 +152,85 @@ const createQuestionWithOption = async (req: AuthRequest, res: Response): Promis
   }
 };
 
+
+
+
+ const bulkUploadQuestions = async (req: any, res: Response) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "Excel file required" });
+    }
+
+    const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows: any[] = XLSX.utils.sheet_to_json(sheet);
+
+    const cloudinary = req.app.locals.cloudinary;
+
+    for (const row of rows) {
+
+      // 🔹 Find Subject/Chapter/Topic
+      const subject = await SubjectModel.findOne({ name: row.Subject });
+      const chapter = await ChapterModel.findOne({ name: row.Chapter });
+      const topic = await TopicModel.findOne({ name: row.Topic });
+
+      if (!subject || !chapter || !topic) {
+        throw new Error(`Invalid mapping: ${row.Subject}/${row.Chapter}/${row.Topic}`);
+      }
+
+      // 🔹 Create Question
+      const newQuestion = await QuestionModel.create({
+        QuestionText: row.QuestionText,
+        QuestionType: "MCQ",
+        DifficultyLevel: row.DifficultyLevel || "Easy",
+        SubjectId: subject._id,
+        ChapterId: chapter._id,
+        TopicId: topic._id,
+        Marks: Number(row.Marks),
+        NegativeMarks: Number(row.NegativeMarks || 0),
+        TimeAllowedInSeconds: Number(row.TimeAllowedInSeconds),
+        Explanation: row.Explanation || "",
+        TeacherId: user._id,
+        CreatedBy: user._id,
+        Status: "Active",
+      });
+
+      // 🔹 Create Options
+      const options = [
+        { text: row.OptionA, key: "A" },
+        { text: row.OptionB, key: "B" },
+        { text: row.OptionC, key: "C" },
+        { text: row.OptionD, key: "D" },
+      ];
+
+      const mappedOptions = options.map(opt => ({
+        QuestionId: newQuestion._id,
+        OptionText: opt.text,
+        IsCorrect: row.CorrectAnswer === opt.key,
+        Status: "Active",
+      }));
+
+      await QuestionOptionModel.insertMany(mappedOptions);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: "Bulk questions uploaded successfully"
+    });
+
+  } catch (error: any) {
+    console.error("Bulk upload error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
 const updateQuestion = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const user = req.user;
@@ -427,6 +511,106 @@ const deleteQuestion = async (req: AuthRequest, res: Response): Promise<void> =>
 };
 
 
+const deleteAllQuestions = async (req: AuthRequest, res: Response): Promise<void> => {
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const user = req.user;
+
+    // ✅ Auth check
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    // ✅ Role check
+    const allowedRoles = ['Admin', 'Teacher'];
+    const hasAccess = req.roles?.some(role => allowedRoles.includes(role));
+
+    if (!hasAccess) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: Only Admin or Teacher can delete Questions'
+      });
+    }
+
+    const cloudinary = req.app.locals.cloudinary;
+
+    // ✅ 1. Get Questions (SAFE FILTER)
+    let questions;
+
+    if (req.roles?.includes('Admin') || req.roles?.includes('Teacher')) {
+      questions = await QuestionModel.find({
+        $or: [
+          { SubjectId: { $exists: true, $ne: null } },
+          { ChapterId: { $exists: true, $ne: null } },
+          { TopicId: { $exists: true, $ne: null } }
+        ]
+      }, "_id QuestionImage").session(session);
+    } else {
+      questions = [];
+    }
+
+    if (!questions.length) {
+      await session.abortTransaction();
+      return res.status(404).json({
+        success: false,
+        message: 'No questions found to delete'
+      });
+    }
+
+    const questionIds = questions.map(q => q._id);
+
+    // ================== ☁️ CLOUDINARY DELETE ==================
+
+    // ✅ Question Images
+    await Promise.all(questions.map(async (q) => {
+      if (q.QuestionImage) {
+        const public_id = q.QuestionImage.split('/').pop()?.split('.')[0];
+        await cloudinary.uploader.destroy(`Questions/${public_id}`);
+      }
+    }));
+
+    // ================== 🧹 DATABASE DELETE ==================
+
+    // ✅ Question Options
+    await QuestionOptionModel.deleteMany({
+      QuestionId: { $in: questionIds }
+    }).session(session);
+
+    // ✅ Questions (SAFE DELETE)
+    await QuestionModel.deleteMany({
+      $or: [
+        { SubjectId: { $exists: true, $ne: null } },
+        { ChapterId: { $exists: true, $ne: null } },
+        { TopicId: { $exists: true, $ne: null } }
+      ]
+    }).session(session);
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.status(200).json({
+      success: true,
+      message: '✅ All questions and options deleted successfully',
+    });
+
+  } catch (error: any) {
+
+    await session.abortTransaction();
+    session.endSession();
+
+    console.error('❌ Error deleting all questions:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to delete questions',
+      error: error.message,
+    });
+  }
+};
+
 const getAllQuestionsBySubject = async (req: Request, res: Response) => {
   try {
  
@@ -679,4 +863,5 @@ const createQuestionWithOption_and_addtoTestPaper = async (
 
 
 export default { createQuestionWithOption,getQuestionById,deleteQuestion,
-  getAllQuestions,updateQuestion,getAllQuestionsBySubject,getQuestionByTestPaperId,createQuestionWithOption_and_addtoTestPaper};
+  getAllQuestions,updateQuestion,getAllQuestionsBySubject,
+  getQuestionByTestPaperId,createQuestionWithOption_and_addtoTestPaper,deleteAllQuestions,bulkUploadQuestions};

@@ -62,6 +62,17 @@ export const deleteTopic = async (TopicId) => {
 };
 
 
+// Delete All Topics
+export const deleteAllTopics = async () => {
+    try {
+        const response = await api.delete(`/delete-AllTopics`);
+        return response.data;
+    } catch (error) {
+        console.error('Error deleting Topic:', error);
+        throw error;
+    }
+};
+
 // Get Topic by Slug
 export const getTopicsByChapterId = async (Id) => {
     try {

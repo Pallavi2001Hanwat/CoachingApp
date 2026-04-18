@@ -7,7 +7,7 @@ export const addCourse = async (CourseData) => {
       const response = await api.post('/create-Course', CourseData, {
         validateStatus: () => true   // ab har status ka response yaha milega, catch me nahi jayega
       });
-      return response;
+      return response.data;
     } catch (error) {
       console.error('Network error:', error);
       throw error;
@@ -53,6 +53,17 @@ export const updateCourse = async (Id, CourseData) => {
 export const deleteCourse = async (CourseId) => {
     try {
         const response = await api.delete(`/delete-Course/${CourseId}`);
+        return response.data;
+    } catch (error) {
+        console.error('Error deleting Course:', error);
+        throw error;
+    }
+};
+
+// Delete All Courses
+export const deleteAllCourses = async () => {
+    try {
+        const response = await api.delete('/delete-AllCourses');
         return response.data;
     } catch (error) {
         console.error('Error deleting Course:', error);

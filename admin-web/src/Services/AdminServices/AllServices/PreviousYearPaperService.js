@@ -59,3 +59,14 @@ export const deletePreviousYearPaper = async (PreviousYearPaperId) => {
         throw error;
     }
 };
+
+// Delete PreviousYearPaper
+export const deleteAllPreviousYearPapers = async () => {
+    try {
+        const response = await api.delete('/delete-AllPreviousYearPapers');
+        return response.data;
+    } catch (error) {
+        console.error('Error deleting PreviousYearPaper:', error);
+        throw error;
+    }
+};

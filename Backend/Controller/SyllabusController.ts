@@ -139,7 +139,67 @@ import Syllabus from "../Models/Syllabus";
   }
 };
 
+const deleteAllSyllabusCategories = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    // 🔐 Optional: Only Admin
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+    if (!req.roles?.includes("Admin")&& !req.roles?.includes("Teacher")) {
+      res.status(403).json({ success: false, message: "Only Admin or Teacher can delete all categories" });
+      return;
+    }
 
+    // ✅ 1. Get all categories
+    const allCategories = await SyllabusCategory.find();
+
+    if (allCategories.length === 0) {
+      res.status(200).json({ success: true, message: "No categories found" });
+      return;
+    }
+
+    // ✅ 2. Delete all related syllabus for each category
+    const cloudinary = req.app.locals.cloudinary;
+
+    for (const category of allCategories) {
+      const syllabusList = await Syllabus.find({ SyllabusCategoryId: category._id });
+
+      // 🔥 Delete PDFs if stored in Cloudinary
+      for (const syllabus of syllabusList) {
+        if (syllabus.PdfUrl) {
+          const public_id = syllabus.PdfUrl.split('/').pop()?.split('.')[0];
+          if (public_id) {
+            await cloudinary.uploader.destroy(`Syllabus/${public_id}`);
+          }
+        }
+      }
+
+      // Delete syllabus in DB
+      await Syllabus.deleteMany({ SyllabusCategoryId: category._id });
+    }
+
+    // ✅ 3. Delete all categories
+    await SyllabusCategory.deleteMany({});
+
+    res.status(200).json({
+      success: true,
+      message: "🗑️ All Syllabus Categories and related Syllabus deleted successfully",
+    });
+
+  } catch (error: any) {
+    console.error("❌ Error deleting all syllabus categories:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete all syllabus categories",
+      error: error.message,
+    });
+  }
+};
 
  const getSyllabusCategoryById = async (
   req: Request,
@@ -365,6 +425,57 @@ import Syllabus from "../Models/Syllabus";
 };
 
 
+const deleteAllSyllabus = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    // 🔐 Admin check
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+    if (!req.roles?.includes("Admin")&& !req.roles?.includes("Teacher")) {
+      res.status(403).json({ success: false, message: "Only Admin or Teacher can delete all syllabus" });
+      return;
+    }
+
+    // ✅ Get all syllabus
+    const allSyllabus = await Syllabus.find();
+
+    if (allSyllabus.length === 0) {
+      res.status(200).json({ success: true, message: "No syllabus found" });
+      return;
+    }
+
+    // ✅ Delete PDFs from Cloudinary if exists
+    const cloudinary = req.app.locals.cloudinary;
+
+    for (const syllabus of allSyllabus) {
+      if (syllabus.PdfUrl) {
+        const public_id = syllabus.PdfUrl.split('/').pop()?.split('.')[0];
+        if (public_id) {
+          await cloudinary.uploader.destroy(`Syllabus/${public_id}`);
+        }
+      }
+    }
+
+    // ✅ Delete all syllabus from DB
+    await Syllabus.deleteMany({});
+
+    res.status(200).json({
+      success: true,
+      message: "🗑️ All Syllabus and related PDFs deleted successfully",
+    });
+
+  } catch (error: any) {
+    console.error("❌ Error deleting all syllabus:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete all syllabus",
+      error: error.message,
+    });
+  }
+};
+
  const getSyllabusBySyllabusCategoryId = async (
   req: Request,
   res: Response
@@ -392,5 +503,5 @@ import Syllabus from "../Models/Syllabus";
   }
 };
 
-export default {createSyllabusCategory,getAllSyllabusCategories,updateSyllabusCategory,getSyllabusCategoryById,deleteSyllabusCategory,
-  createSyllabus,getAllSyllabus,getSyllabusById,updateSyllabus ,deleteSyllabus,getSyllabusBySyllabusCategoryId};
+export default {createSyllabusCategory,getAllSyllabusCategories,updateSyllabusCategory,getSyllabusCategoryById,deleteSyllabusCategory,deleteAllSyllabusCategories,
+  createSyllabus,getAllSyllabus,getSyllabusById,updateSyllabus ,deleteSyllabus,getSyllabusBySyllabusCategoryId,deleteAllSyllabus};

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
     getAllTopics,
     deleteTopic,
+    deleteAllTopics
 } from '../../../Services/AdminServices/AllServices/TopicService';
 
 import { useNavigate } from 'react-router-dom';
@@ -93,6 +94,28 @@ const TopicList = () => {
         }
 
     };
+
+const handleDeleteAll = async () => {
+
+    if (window.confirm('Are you sure you want to delete ALL topics? This action cannot be undone!')) {
+
+        try {
+
+            const response = await deleteAllTopics();
+
+            setTopics([]); // ✅ UI clear
+
+            toast.success(response.message || 'All topics deleted successfully');
+
+        } catch (error) {
+
+            toast.error(error.response?.data?.message || 'Failed to delete all topics');
+
+        }
+
+    }
+
+};
 
     const columns = useMemo(() => [
 
@@ -263,13 +286,26 @@ const TopicList = () => {
 
             <div className="white-bg-btn">
 
-                <p>Topics</p>
+    <p>Topics</p>
 
-                <button className="button" onClick={handleCreate}>
-                    Create Topic
-                </button>
+    <div style={{ display: 'flex', gap: '10px' }}>
 
-            </div>
+        <button className="button" onClick={handleCreate}>
+            Create Topic
+        </button>
+
+        <button
+            className="button delete-button"
+            onClick={handleDeleteAll}
+            style={{ backgroundColor: 'red', color: 'white' }}
+            disabled={Topics.length === 0} // ✅ safety
+        >
+            Delete All
+        </button>
+
+    </div>
+
+</div>
 
             <div className="white-bg">
 

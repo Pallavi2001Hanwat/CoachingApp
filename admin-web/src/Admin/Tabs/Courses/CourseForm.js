@@ -10,25 +10,32 @@ const CourseForm = ({ isEditMode = false }) => {
 
     const [previewSource, setPreviewSource] = useState('');
 
-    const [title, setTitle] = useState('');
-    const [description, setDescription] = useState('');
-    const [category, setCategory] = useState('');
+    const [Title, setTitle] = useState('');
+    const [Description, setDescription] = useState('');
+    const [Category, setCategory] = useState('');
     const [categories, setCategories] = useState([]);
-    const [level, setLevel] = useState('Beginner');
-    const [price, setPrice] = useState('');
-    const [isPaid, setIsPaid] = useState(true);
-    const [discount, setDiscount] = useState('');
-    const [language, setLanguage] = useState('');
-    const [image, setImage] = useState('');
-    const [startingDate, setStartingDate] = useState('');
-    const [expiryDate, setExpiryDate] = useState('');
-    const [status, setStatus] = useState('Draft');
+    const [Level, setLevel] = useState('Beginner');
+    const [Price, setPrice] = useState('');
+    const [IsPaid, setIsPaid] = useState(true);
+    const [DiscountPercentage, setDiscountPercentage] = useState('');
+    const [Language, setLanguage] = useState('');
+    const [Image, setImage] = useState('');
+    const [StartingDate, setStartingDate] = useState('');
+    const [ExpiryDate, setExpiryDate] = useState('');
+    const [Status, setStatus] = useState('Draft');
 
     const [isLoading, setIsLoading] = useState(true);
 
     const { id } = useParams();
     const navigate = useNavigate();
     const isFetchedRef = useRef(false);
+
+
+    const formatDate = (dateString) => {
+        if (!dateString) return '';
+        return dateString.split('T')[0];
+    };
+
 
     useEffect(() => {
 
@@ -56,11 +63,11 @@ const CourseForm = ({ isEditMode = false }) => {
                         setLevel(course.Level || 'Beginner');
                         setPrice(course.Price || '');
                         setIsPaid(course.IsPaid ?? true);
-                        setDiscount(course.Discount || '');
+                        setDiscountPercentage(course.DiscountPercentage || '');
                         setLanguage(course.Language || '');
                         setImage(course.Image || '');
-                        setStartingDate(course.StartingDate || '');
-                        setExpiryDate(course.ExpiryDate || '');
+                        setStartingDate(formatDate(course.StartingDate));
+                        setExpiryDate(formatDate(course.ExpiryDate));
                         setStatus(course.Status || 'Draft');
 
                     }
@@ -87,7 +94,7 @@ const CourseForm = ({ isEditMode = false }) => {
 
 
     const handleCancel = () => {
-        navigate('/admin/Course');
+        navigate('/admin/Courses');
     };
 
 
@@ -122,18 +129,18 @@ const CourseForm = ({ isEditMode = false }) => {
         e.preventDefault();
 
         const payload = {
-            title,
-            description,
-            category,
-            level,
-            price,
-            isPaid,
-            discount,
-            language,
-            image,
-            startingDate,
-            expiryDate,
-            status
+            Title,
+            Description,
+            Category,
+            Level,
+            Price,
+            IsPaid,
+            DiscountPercentage,
+            Language,
+            Image,
+            StartingDate,
+            ExpiryDate,
+            Status
         };
 
         try {
@@ -151,7 +158,7 @@ const CourseForm = ({ isEditMode = false }) => {
             if (response.success) {
 
                 setTimeout(() => {
-                    navigate('/admin/Course');
+                    navigate('/admin/Courses');
                 }, 2000);
 
             }
@@ -192,7 +199,7 @@ const CourseForm = ({ isEditMode = false }) => {
                                         <div className="formlabel">Title</div>
                                         <input
                                             type="text"
-                                            value={title}
+                                            value={Title}
                                             onChange={(e) => setTitle(e.target.value)}
                                             required
                                         />
@@ -201,14 +208,14 @@ const CourseForm = ({ isEditMode = false }) => {
                                     <td>
                                         <div className="formlabel">Category</div>
                                         <select
-                                            value={category}
+                                            value={Category}
                                             onChange={(e) => setCategory(e.target.value)}
                                             required
                                         >
                                             <option value="">Select Category</option>
 
                                             {categories.map((cat) => (
-                                                <option key={cat.id} value={cat.id}>
+                                                <option key={cat._id} value={cat._id}>
                                                     {cat.CategoryName}
                                                 </option>
                                             ))}
@@ -226,7 +233,7 @@ const CourseForm = ({ isEditMode = false }) => {
                                         <div className="formlabel">Description</div>
 
                                         <textarea
-                                            value={description}
+                                            value={Description}
                                             onChange={(e) => setDescription(e.target.value)}
                                         />
 
@@ -241,7 +248,7 @@ const CourseForm = ({ isEditMode = false }) => {
                                         <div className="formlabel">Level</div>
 
                                         <select
-                                            value={level}
+                                            value={Level}
                                             onChange={(e) => setLevel(e.target.value)}
                                         >
                                             <option value="Beginner">Beginner</option>
@@ -256,7 +263,7 @@ const CourseForm = ({ isEditMode = false }) => {
 
                                         <input
                                             type="text"
-                                            value={language}
+                                            value={Language}
                                             onChange={(e) => setLanguage(e.target.value)}
                                         />
 
@@ -272,7 +279,7 @@ const CourseForm = ({ isEditMode = false }) => {
 
                                         <input
                                             type="number"
-                                            value={price}
+                                            value={Price}
                                             onChange={(e) => setPrice(e.target.value)}
                                         />
 
@@ -284,7 +291,7 @@ const CourseForm = ({ isEditMode = false }) => {
 
                                             <input
                                                 type="checkbox"
-                                                checked={isPaid}
+                                                checked={IsPaid}
                                                 onChange={(e) => setIsPaid(e.target.checked)}
                                             />
 
@@ -304,8 +311,8 @@ const CourseForm = ({ isEditMode = false }) => {
 
                                         <input
                                             type="number"
-                                            value={discount}
-                                            onChange={(e) => setDiscount(e.target.value)}
+                                            value={DiscountPercentage}
+                                            onChange={(e) => setDiscountPercentage(e.target.value)}
                                         />
 
                                     </td>
@@ -315,7 +322,7 @@ const CourseForm = ({ isEditMode = false }) => {
                                         <div className="formlabel">Status</div>
 
                                         <select
-                                            value={status}
+                                            value={Status}
                                             onChange={(e) => setStatus(e.target.value)}
                                         >
                                             <option value="Draft">Draft</option>
@@ -335,7 +342,7 @@ const CourseForm = ({ isEditMode = false }) => {
 
                                         <input
                                             type="date"
-                                            value={startingDate}
+                                            value={StartingDate}
                                             onChange={(e) => setStartingDate(e.target.value)}
                                         />
 
@@ -347,7 +354,7 @@ const CourseForm = ({ isEditMode = false }) => {
 
                                         <input
                                             type="date"
-                                            value={expiryDate}
+                                            value={ExpiryDate}
                                             onChange={(e) => setExpiryDate(e.target.value)}
                                         />
 
@@ -369,10 +376,10 @@ const CourseForm = ({ isEditMode = false }) => {
 
                                         <div className='pt-2'>
 
-                                            {(previewSource || image) && (
+                                            {(previewSource || Image) && (
 
                                                 <img
-                                                    src={previewSource || image}
+                                                    src={previewSource || Image}
                                                     alt="course"
                                                     style={{ height: '180px' }}
                                                 />

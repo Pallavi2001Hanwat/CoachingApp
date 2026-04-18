@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import TestSeriesModel from '../Models/TestSeries';
 import { AuthRequest } from '../Middleware/AuthMiddleware';
+import TestPaperModel from '../Models/TestPaper';
 
 
 
@@ -314,6 +315,65 @@ const updateTestSeries = async (req: AuthRequest, res: Response): Promise<void> 
 };
 
 
+const deleteAllTestSeries = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+
+    // ✅ Auth check
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    // ✅ Only Admin allowed (recommended)
+    if (!req.roles?.includes('Admin')) {
+      res.status(403).json({
+        success: false,
+        message: 'Access denied: Only Admin can delete all TestSeries',
+      });
+      return;
+    }
+
+    // ✅ Get all TestSeries first (for images)
+    const allTestSeries = await TestSeriesModel.find();
+
+    // ✅ Delete all images from Cloudinary
+    const cloudinary = req.app.locals.cloudinary;
+
+    for (const series of allTestSeries) {
+      if (series.Image) {
+        const public_id = series.Image.split('/').pop()?.split('.')[0];
+
+        if (public_id) {
+          await cloudinary.uploader.destroy(`TestSeries/${public_id}`);
+        }
+      }
+    }
+
+    
+
+    // ✅ Delete ALL TestPapers
+    await TestPaperModel.deleteMany({});
+
+    // ✅ Delete ALL TestSeries
+    await TestSeriesModel.deleteMany({});
+
+    res.status(200).json({
+      success: true,
+      message: '🔥 All TestSeries, TestPapers, and images deleted successfully',
+    });
+
+  } catch (error: any) {
+    console.error('❌ Error deleting all TestSeries:', error);
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete all TestSeries',
+      error: error.message,
+    });
+  }
+};
+
  const getAllPaidTestSeries = async (req: Request, res: Response): Promise<void> => {
   try {
 
@@ -363,4 +423,4 @@ const getTestSeriesByCategoryId = async (req: Request, res: Response): Promise<v
 };
 
 export default { createTestSeries,getAllTestSeries,getTestSeriesById,updateTestSeries,
-  deleteTestSeries,getAllPaidTestSeries,getAllFreeTestSeries,getTestSeriesByCategoryId};
+  deleteTestSeries,getAllPaidTestSeries,getAllFreeTestSeries,getTestSeriesByCategoryId, deleteAllTestSeries};

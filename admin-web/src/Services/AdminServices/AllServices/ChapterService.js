@@ -60,6 +60,16 @@ export const deleteChapter = async (ChapterId) => {
         throw error;
     }
 };
+// Delete All Chapters
+export const deleteAllChapters = async () => {
+    try {
+        const response = await api.delete(`/delete-AllChapters`);
+        return response.data;
+    } catch (error) {
+        console.error('Error deleting Chapter:', error);
+        throw error;
+    }
+};
 
 
 // Get Chapter by Slug

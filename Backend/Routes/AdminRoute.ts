@@ -16,7 +16,7 @@ import PreviousYearPaperController from '../Controller/PreviousYearPaperControll
 import SyllabusController from '../Controller/SyllabusController';
 
 import CurrentAffraisController from '../Controller/CurrentAffraisController';
-
+import { upload } from '../Middleware/UploadMiddleware';
 
 
 
@@ -37,6 +37,7 @@ router.get("/get-AllCategory",CategoryController.getAllCategories );
 router.get("/get-CategoryById/:id",CategoryController.getCategoryById );
 router.put("/update-Category/:id",CategoryController.updateCategory );
 router.delete("/delete-Category/:id",CategoryController.deleteCategory );
+router.delete("/delete-AllCategory",CategoryController.deleteAllCategories );
 
 /* --------------------------- ✅  Course Route --------------------------- */
 router.post("/create-Course",CourseController.createCourse );
@@ -45,6 +46,7 @@ router.get("/get-CourseById/:id",CourseController.getCourseById );
 router.put("/update-Course/:id",CourseController.updateCourse );
 router.delete("/delete-Course/:id",CourseController.deleteCourse );
 router.put("/AddSubject-ToCourse/:id",CourseController.AddSubjectToCourse );
+router.delete("/delete-AllCourses",CourseController.deleteAllCourses );
 
 /* --------------------------- ✅  Subject Route --------------------------- */
 router.post("/create-Subject",SubjectController.createSubject );
@@ -52,6 +54,8 @@ router.get("/get-AllSubject",SubjectController.getAllSubjects );
 router.get("/get-SubjectById/:id",SubjectController.getSubjectById );
 router.put("/update-Subject/:id",SubjectController.updateSubject );
 router.delete("/delete-Subject/:id",SubjectController.deleteSubject );
+router.delete("/delete-AllSubjects",SubjectController.deleteAllSubjects );
+
 
 
 /* --------------------------- ✅  Chapter Route --------------------------- */
@@ -61,6 +65,7 @@ router.get("/get-ChapterById/:id",ChapterController.getChapterById );
 router.put("/update-Chapter/:id",ChapterController.updateChapter );
 router.delete("/delete-Chapter/:id",ChapterController.deleteChapter );
 router.get("/get-ChaptersBySubjectId/:id",ChapterController.getChaptersBySubjectId );
+router.delete("/delete-AllChapters",ChapterController.deleteAllChapters );
 
 
 /* --------------------------- ✅  Topic Route --------------------------- */
@@ -70,7 +75,7 @@ router.get("/get-TopicById/:id",TopicOrClassController.getTopicOrClassById );
 router.put("/update-Topic/:id",TopicOrClassController.updateTopicOrClass );
 router.delete("/delete-Topic/:id",TopicOrClassController.deleteTopicOrClass );
 router.get("/get-TopicsByChapterId/:chapterid",TopicOrClassController.getTopicsByChapterId );
-
+router.delete("/delete-AllTopics",TopicOrClassController.deleteAllTopics );
 
 /* --------------------------- ✅  Dashboard Route --------------------------- */
 router.post("/create-Dashboard_Item",DashboardItemController.createDashboard_Item );
@@ -78,6 +83,8 @@ router.get("/get-AllDashboard_Item",DashboardItemController.getAllDashboard_Item
 router.get("/get-Dashboard_ItemById/:id",DashboardItemController.getDashboard_ItemById );
 router.put("/update-Dashboard_Item/:id",DashboardItemController.updateDashboard_Item );
 router.delete("/delete-Dashboard_Item/:id",DashboardItemController.deleteDashboard_Item );
+router.delete("/delete-AllDashboard_Items",DashboardItemController.deleteAllDashboard_Items );
+router.get("/get-NextOrderNo",DashboardItemController.getNextOrderNo );
 
 
 
@@ -90,7 +97,7 @@ router.get("/get-TestSeriesById/:id",TestSeriesController.getTestSeriesById );
 router.put("/update-TestSeries/:id",TestSeriesController.updateTestSeries );
 router.delete("/delete-TestSeries/:id",TestSeriesController.deleteTestSeries );
 router.get("/get-AllTestSeriesByCategoryId/:categoryId",TestSeriesController.getTestSeriesByCategoryId );
-
+router.delete("/delete-AllTestSeries",TestSeriesController.deleteAllTestSeries );
 
 /* --------------------------- ✅  TestPaper Route --------------------------- */
 router.post("/create-TestPaper",TestPaperController.createTestPaper );
@@ -100,8 +107,12 @@ router.put("/update-TestPaper/:id",TestPaperController.updateTestPaper );
 router.delete("/delete-TestPaper/:id",TestPaperController.deleteTestPaper );
 router.post("/TestPaper-save-questions",TestPaperController.saveSelectedQuestionsToTestPaper );
 router.delete("/TestPaper-delete-questions/:testpaperid",TestPaperController.removeAllSelectedQuestionsFromTestPaper );
-
-
+router.delete("/delete-AllTestPapers",TestPaperController.deleteAllTestPapers );
+router.post(
+  '/bulk-create-testpapers/:testSeriesId',
+  upload.single('file'), // multer
+  TestPaperController.bulkCreateTestPapers
+);
 
 /* --------------------------- ✅  QuestionWith Option  Route --------------------------- */
 router.post("/create-Question",QuestionWithOptionsController.createQuestionWithOption );
@@ -112,8 +123,12 @@ router.delete("/delete-Question/:id",QuestionWithOptionsController.deleteQuestio
 router.post("/get-AllQuestionsBySubject",QuestionWithOptionsController.getAllQuestionsBySubject );
 router.get("/get-QuestionByTestPaperId/:testpaperid",QuestionWithOptionsController.getQuestionByTestPaperId );
 router.post("/createquestion-addin-testpaper",QuestionWithOptionsController.createQuestionWithOption_and_addtoTestPaper );
-
-
+router.delete("/delete-AllQuestions",QuestionWithOptionsController.deleteAllQuestions );
+router.post(
+  '/bulk-upload-questions',
+  upload.single('file'), // multer
+  QuestionWithOptionsController.bulkUploadQuestions
+);
 
 
 
@@ -124,6 +139,8 @@ router.get("/get-AllPYPCategories",PreviousYearPaperCategoryController.getAllPYP
 router.get("/get-PYPCategoryById/:id",PreviousYearPaperCategoryController.getPYPCategoryById );
 router.put("/update-PYPCategory/:id",PreviousYearPaperCategoryController.updatePYPCategory );
 router.delete("/delete-PYPCategory/:id",PreviousYearPaperCategoryController.deletePYPCategory );
+router.delete("/deleteAllPYPCategories",PreviousYearPaperCategoryController.deleteAllPYPCategories );
+
 
 
 router.post("/create-PreviousYearPaper",PreviousYearPaperController.createPreviousYearPaper );
@@ -131,7 +148,7 @@ router.get("/get-AllPreviousYearPapers",PreviousYearPaperController.getAllPrevio
 router.get("/get-PreviousYearPaperById/:id",PreviousYearPaperController.getPreviousYearPaperById );
 router.put("/update-PreviousYearPaper/:id",PreviousYearPaperController.updatePreviousYearPaper );
 router.delete("/delete-PreviousYearPaper/:id",PreviousYearPaperController.deletePreviousYearPaper );
-
+router.delete("/delete-AllPreviousYearPapers",PreviousYearPaperController.deleteAllPreviousYearPapers );
 
 
 
@@ -142,14 +159,14 @@ router.get("/get-AllDailyCurrentAffairs",CurrentAffraisController.getAllDailyCur
 router.get("/get-DailyCurrentAffairsById/:id",CurrentAffraisController.getDailyCurrentAffairsById );
 router.put("/update-DailyCurrentAffairs/:id",CurrentAffraisController.updateDailyCurrentAffairs );
 router.delete("/delete-DailyCurrentAffairs/:id",CurrentAffraisController.deleteDailyCurrentAffairs );
-
+router.delete("/delete-AllDailyCurrentAffairs",CurrentAffraisController.deleteAllDailyCurrentAffairs );
 
 router.post("/create-MonthlyCurrentAffairs",CurrentAffraisController.createMonthlyCurrentAffairs );
 router.get("/get-AllMonthlyCurrentAffairs",CurrentAffraisController.getAllMonthlyCurrentAffairs );
 router.get("/get-MonthlyCurrentAffairsById/:id",CurrentAffraisController.getMonthlyCurrentAffairsById );
 router.put("/update-MonthlyCurrentAffairs/:id",CurrentAffraisController.updateMonthlyCurrentAffairs );
 router.delete("/delete-MonthlyCurrentAffairs/:id",CurrentAffraisController.deleteMonthlyCurrentAffairs );
-
+router.delete("/delete-AllMonthlyCurrentAffairs",CurrentAffraisController.deleteAllMonthlyCurrentAffairs );
 
 
 
@@ -160,6 +177,8 @@ router.get("/get-AllSyllabusCategories",SyllabusController.getAllSyllabusCategor
 router.get("/get-SyllabusCategoryById/:id",SyllabusController.getSyllabusCategoryById );
 router.put("/update-SyllabusCategory/:id",SyllabusController.updateSyllabusCategory );
 router.delete("/delete-SyllabusCategory/:id",SyllabusController.deleteSyllabusCategory );
+router.delete("/deleteAll-SyllabusCategories",SyllabusController.deleteAllSyllabusCategories );
+
 
 
 router.post("/create-Syllabus",SyllabusController.createSyllabus );
@@ -167,6 +186,8 @@ router.get("/get-AllSyllabus",SyllabusController.getAllSyllabus );
 router.get("/get-SyllabusById/:id",SyllabusController.getSyllabusById );
 router.put("/update-Syllabus/:id",SyllabusController.updateSyllabus );
 router.delete("/delete-Syllabus/:id",SyllabusController.deleteSyllabus );
+router.delete("/deleteAll-Syllabus",SyllabusController.deleteAllSyllabus );
+
 
 
 export default router

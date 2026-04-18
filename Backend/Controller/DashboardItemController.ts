@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import Dashboard_ItemModel from '../Models/DashboardItem';
 import { AuthRequest } from '../Middleware/AuthMiddleware';
-
+import mongoose from "mongoose";
 
 
 const createDashboard_Item = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -322,6 +322,92 @@ const updateDashboard_Item = async (req: AuthRequest, res: Response): Promise<vo
 };
 
 
+const deleteAllDashboard_Items = async (req: AuthRequest, res: Response): Promise<void> => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const user = req.user;
+
+    // ✅ Auth check
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    // ✅ Role check
+    const allowedRoles = ['Admin', 'Teacher'];
+    const hasAccess = req.roles?.some((role) => allowedRoles.includes(role));
+
+    if (!hasAccess) {
+      res.status(403).json({
+        success: false,
+        message: 'Access denied: Only Admin or Teacher can delete Dashboard_Items'
+      });
+      return;
+    }
+
+    const cloudinary = req.app.locals.cloudinary;
+
+    // ✅ Get Dashboard_Items
+    let dashboardItems;
+
+    if (req.roles?.includes('Admin') || req.roles?.includes('Teacher')) {
+      dashboardItems = await Dashboard_ItemModel.find({}, "_id Image TeacherId").session(session);
+    } else {
+      dashboardItems = await Dashboard_ItemModel.find({ TeacherId: user._id }, "_id Image TeacherId").session(session);
+    }
+
+    if (!dashboardItems.length) {
+      await session.abortTransaction();
+      return res.status(404).json({
+        success: false,
+        message: 'No Dashboard_Items found to delete'
+      });
+    }
+
+    // ================== ☁️ CLOUDINARY DELETE ==================
+    await Promise.all(dashboardItems.map(async (item) => {
+      if (item.Image) {
+        const public_id = item.Image.split('/').pop()?.split('.')[0];
+        await cloudinary.uploader.destroy(`Dashboard_Items/${public_id}`);
+      }
+    }));
+
+    // ================== 🧹 DATABASE DELETE ==================
+    if (req.roles?.includes('Admin')|| req.roles?.includes('Teacher')) {
+      await Dashboard_ItemModel.deleteMany({}).session(session);
+    } else {
+      // Teachers can delete only their own items
+      const teacherItemIds = dashboardItems
+        .filter(item => item.TeacherId.toString() === user._id.toString())
+        .map(item => item._id);
+
+      await Dashboard_ItemModel.deleteMany({ _id: { $in: teacherItemIds } }).session(session);
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({
+      success: true,
+      message: '✅ All Dashboard_Items and associated images deleted successfully',
+    });
+
+  } catch (error: any) {
+    await session.abortTransaction();
+    session.endSession();
+
+    console.error('❌ Error deleting all Dashboard_Items:', error);
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete Dashboard_Items',
+      error: error.message,
+    });
+  }
+};
+
 
  const getAll_Active_Dashboard_Items = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -335,5 +421,28 @@ const updateDashboard_Item = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
+
+const getNextOrderNo = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const lastItem = await Dashboard_ItemModel
+      .findOne()
+      .sort({ OrderNumber: -1 }); // highest OrderNumber
+
+    const nextOrderNo = lastItem ? lastItem.OrderNumber + 1 : 1;
+
+    res.status(200).json({
+      success: true,
+      nextOrderNo
+    });
+
+  } catch (error: any) {
+    console.error('Error fetching next order number:', error);
+    res.status(500).json({
+      message: 'Failed to fetch next order number',
+      error: error.message
+    });
+  }
+};
 export default { createDashboard_Item,getAllDashboard_Items,
-    getDashboard_ItemById,updateDashboard_Item,deleteDashboard_Item,getAll_Active_Dashboard_Items};
+    getDashboard_ItemById,updateDashboard_Item,
+    deleteDashboard_Item,getAll_Active_Dashboard_Items,deleteAllDashboard_Items,getNextOrderNo};

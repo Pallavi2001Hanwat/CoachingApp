@@ -2,6 +2,10 @@ import { Request, Response } from 'express';
 import CategoryModel from '../Models/Category';
 import { AuthRequest } from '../Middleware/AuthMiddleware';
 
+import mongoose from "mongoose";
+import Course from "../Models/Course";
+import TestSeries from "../Models/TestSeries";
+
 // ✅ Create Category
 const createCategory = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -265,6 +269,82 @@ const updateCategory = async (req: AuthRequest, res: Response): Promise<void> =>
 };
 
 
+const deleteAllCategories = async (req: any) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const cloudinary = req.app.locals.cloudinary;
+
+    // 1. Get all categories
+    const categories = await CategoryModel.find({}, "_id Image").session(session);
+    const categoryIds = categories.map(cat => cat._id);
+
+    // 2. Get all related Courses
+    const courses = await Course.find({
+      Category: { $in: categoryIds }
+    }).session(session);
+
+    // 3. Get all related TestSeries
+    const testSeries = await TestSeries.find({
+      CategoryId: { $in: categoryIds }
+    }).session(session);
+
+    // ✅ 4. Delete Category Images from Cloudinary
+    await Promise.all(
+      categories.map(async (cat) => {
+        if (cat.Image) {
+          const public_id = cat.Image.split('/').pop()?.split('.')[0];
+          await cloudinary.uploader.destroy(`Category/${public_id}`);
+        }
+      })
+    );
+
+    // ✅ 5. Delete Course Images
+    await Promise.all(
+      courses.map(async (course) => {
+        if (course.Image) {
+          const public_id = course.Image.split('/').pop()?.split('.')[0];
+          await cloudinary.uploader.destroy(`Courses/${public_id}`);
+        }
+      })
+    );
+
+    // ✅ 6. Delete TestSeries Images
+    await Promise.all(
+      testSeries.map(async (test) => {
+        if (test.Image) {
+          const public_id = test.Image.split('/').pop()?.split('.')[0];
+          await cloudinary.uploader.destroy(`TestSeries/${public_id}`);
+        }
+      })
+    );
+
+    // 7. Delete DB records
+    await Course.deleteMany({
+      Category: { $in: categoryIds }
+    }).session(session);
+
+    await TestSeries.deleteMany({
+      CategoryId: { $in: categoryIds }
+    }).session(session);
+
+    await CategoryModel.deleteMany({}).session(session);
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return {
+      message: "✅ All categories, courses, test series and images deleted successfully",
+    };
+
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
+};
+
 // 📌 Get Categories that have Paid Courses
 const getPaidCourseCategories = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -331,5 +411,6 @@ export default {
   getCategoryById,
   updateCategory,
   deleteCategory,
-  getPaidCourseCategories
+  getPaidCourseCategories,
+  deleteAllCategories
 };

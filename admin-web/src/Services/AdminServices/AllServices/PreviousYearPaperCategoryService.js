@@ -61,6 +61,17 @@ export const deletePreviousYearPaperCategory = async (PreviousYearPaperCategoryI
 };
 
 
+// Delete All PreviousYearPaperCategory
+export const deleteAllPreviousYearPaperCategorys = async () => {
+    try {
+        const response = await api.delete('/deleteAllPYPCategories');
+        return response.data;
+    } catch (error) {
+        console.error('Error deleting PreviousYearPaperCategory:', error);
+        throw error;
+    }
+};
+
 
 
 

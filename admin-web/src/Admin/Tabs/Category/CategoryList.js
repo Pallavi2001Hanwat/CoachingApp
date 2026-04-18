@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
     getAllCategories,
     deleteCategory,
+    deleteAllCategories
 } from '../../../Services/AdminServices/AllServices/CategoryService';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -75,19 +76,43 @@ const CategoryList = () => {
 
     const handleDelete = async (categoryId) => {
 
-        if (window.confirm('Are you sure you want to delete this category?')) {
+    if (window.confirm('Are you sure you want to delete this category?')) {
+
+        try {
+
+            const response = await deleteCategory(categoryId);
+
+            setCategories((prev) =>
+                prev.filter((c) => c._id !== categoryId)
+            );
+
+            toast.success(response.message || 'Category deleted successfully');
+
+        } catch (error) {
+
+            toast.error(error.response?.data?.message || 'Failed to delete category');
+
+        }
+
+    }
+
+};
+
+    const handleDeleteAll = async () => {
+
+        if (window.confirm('Are you sure you want to delete ALL categories? This action cannot be undone!')) {
 
             try {
 
-                const response = await deleteCategory(categoryId);
+                const response = await deleteAllCategories();
 
-                setCategories((prev) => prev.filter((c) => c.id !== categoryId));
+                setCategories([]); // ✅ clear UI
 
-                toast.success(response.message || 'Category deleted successfully');
+                toast.success(response.message || 'All categories deleted successfully');
 
             } catch (error) {
 
-                toast.error(error.response?.data?.message || 'Failed to delete category');
+                toast.error(error.response?.data?.message || 'Failed to delete all categories');
 
             }
 
@@ -234,9 +259,21 @@ const CategoryList = () => {
 
                 <p>Categories</p>
 
-                <button className="button" onClick={handleCreate}>
-                    Create Category
-                </button>
+                <div >
+
+                    <button className="button" onClick={handleCreate}>
+                        Create Category
+                    </button>
+
+                    <button
+                        className="delete-All-button"
+                        onClick={handleDeleteAll}
+
+                    >
+                        Delete All
+                    </button>
+
+                </div>
 
             </div>
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
     getAllChapters,
     deleteChapter,
+    deleteAllChapters
 } from  '../../../Services/AdminServices/AllServices/ChapterService';
 
 import { useNavigate } from 'react-router-dom';
@@ -93,6 +94,28 @@ const ChapterList = () => {
         }
 
     };
+
+    const handleDeleteAll = async () => {
+
+    if (window.confirm('Are you sure you want to delete ALL chapters? This action cannot be undone!')) {
+
+        try {
+
+            const response = await deleteAllChapters();
+
+            setChapters([]); // ✅ UI clear
+
+            toast.success(response.message || 'All chapters deleted successfully');
+
+        } catch (error) {
+
+            toast.error(error.response?.data?.message || 'Failed to delete all chapters');
+
+        }
+
+    }
+
+};
 
     const columns = useMemo(() => [
 
@@ -231,13 +254,26 @@ const ChapterList = () => {
 
             <div className="white-bg-btn">
 
-                <p>Chapters</p>
+    <p>Chapters</p>
 
-                <button className="button" onClick={handleCreate}>
-                    Create Chapter
-                </button>
+    <div style={{ display: 'flex', gap: '10px' }}>
 
-            </div>
+        <button className="button" onClick={handleCreate}>
+            Create Chapter
+        </button>
+
+        <button
+            className="button delete-button"
+            onClick={handleDeleteAll}
+            style={{ backgroundColor: 'red', color: 'white' }}
+            disabled={Chapters.length === 0} // ✅ safety
+        >
+            Delete All
+        </button>
+
+    </div>
+
+</div>
 
             <div className="white-bg">
 

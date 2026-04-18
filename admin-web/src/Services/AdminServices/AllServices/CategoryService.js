@@ -7,7 +7,7 @@ export const addCategory = async (CategoryData) => {
       const response = await api.post('/create-Category', CategoryData, {
         validateStatus: () => true   // ab har status ka response yaha milega, catch me nahi jayega
       });
-      return response;
+      return response.data;
     } catch (error) {
       console.error('Network error:', error);
       throw error;
@@ -53,6 +53,18 @@ export const updateCategory = async (Id, CategoryData) => {
 export const deleteCategory = async (categoryId) => {
     try {
         const response = await api.delete(`/delete-Category/${categoryId}`);
+        return response.data;
+    } catch (error) {
+        console.error('Error deleting category:', error);
+        throw error;
+    }
+};
+
+
+// Delete AllCategory
+export const deleteAllCategories = async () => {
+    try {
+        const response = await api.delete(`/delete-AllCategory`);
         return response.data;
     } catch (error) {
         console.error('Error deleting category:', error);

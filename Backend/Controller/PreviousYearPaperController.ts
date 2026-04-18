@@ -359,7 +359,66 @@ const getPreviousYearPaperByPYPCategoryId = async (
   }
 };
 
+ const deleteAllPreviousYearPapers = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const user = req.user;
 
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    // ✅ Role check
+    const allowedRoles = ['Admin', 'Teacher'];
+    const hasAccess = req.roles?.some(role => allowedRoles.includes(role));
+    if (!hasAccess) {
+      res.status(403).json({ success: false, message: 'Access denied' });
+      return;
+    }
+
+    // Fetch all papers
+    const papers = await PreviousYearPaperModel.find();
+    if (!papers.length) {
+      res.status(404).json({ success: false, message: 'No papers found' });
+      return;
+    }
+
+    const cloudinary = req.app.locals.cloudinary;
+
+    // Loop through papers and delete files
+    for (const paper of papers) {
+      if (paper.PaperFileUrl) {
+        try {
+          const parts = paper.PaperFileUrl.split('/');
+          const fileName = parts[parts.length - 1]; // abc123.pdf
+          const publicId = `PreviousYearPapers/${fileName.split('.')[0]}`;
+          await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+        } catch (err) {
+          console.error(`Failed to delete file for paper ${paper._id}:`, err);
+        }
+      }
+    }
+
+    // Delete all papers from DB
+    await PreviousYearPaperModel.deleteMany();
+
+    res.status(200).json({
+      success: true,
+      message: '✅ All PreviousYearPapers deleted successfully',
+    });
+
+  } catch (error: any) {
+    console.error('Error deleting all PYP papers:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete all papers',
+      error: error.message,
+    });
+  }
+};
 
 export default {
   createPreviousYearPaper,
@@ -367,5 +426,6 @@ export default {
   getPreviousYearPaperById,
   updatePreviousYearPaper,
   deletePreviousYearPaper,
-  getPreviousYearPaperByPYPCategoryId
+  getPreviousYearPaperByPYPCategoryId,
+  deleteAllPreviousYearPapers
 };

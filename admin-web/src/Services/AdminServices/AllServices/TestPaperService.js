@@ -13,6 +13,27 @@ export const createTestPaper = async (TestPaperData) => {
       throw error;
     }
   };
+
+
+
+export const bulkCreateTestPapers = async (testSeriesId, formData) => {
+  try {
+    const response = await api.post(
+      `/bulk-create-testpapers/${testSeriesId}`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Error creating TestPaper:", error);
+    throw error;
+  }
+};
   
 
 // Get All Categories
@@ -53,6 +74,16 @@ export const updateTestPaper = async (Id, TestPaperData) => {
 export const deleteTestPaper = async (TestPaperId) => {
     try {
         const response = await api.delete(`/delete-TestPaper/${TestPaperId}`);
+        return response.data;
+    } catch (error) {
+        console.error('Error deleting TestPaper:', error);
+        throw error;
+    }
+};
+
+export const deleteAllTestPapers = async () => {
+    try {
+        const response = await api.delete(`/delete-AllTestPapers`);
         return response.data;
     } catch (error) {
         console.error('Error deleting TestPaper:', error);

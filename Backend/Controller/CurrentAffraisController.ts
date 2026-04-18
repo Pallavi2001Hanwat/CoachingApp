@@ -144,12 +144,12 @@ const createDailyCurrentAffairs = async (
   res: Response
 ): Promise<void> => {
   try {
-    const data = await DailyCurrentAffairsModel.find()
+    const DailyCurrentAffairs = await DailyCurrentAffairsModel.find()
       .sort({ Date: -1 });
 
     res.status(200).json({
       success: true,
-      data,
+      DailyCurrentAffairs,
     });
   } catch (error: any) {
     res.status(500).json({
@@ -168,9 +168,9 @@ const createDailyCurrentAffairs = async (
   try {
     const { id } = req.params;
 
-    const data = await DailyCurrentAffairsModel.findById(id);
+    const DailyCurrentAffair = await DailyCurrentAffairsModel.findById(id);
 
-    if (!data) {
+    if (!DailyCurrentAffair) {
       res.status(404).json({
         success: false,
         message: "Record not found",
@@ -180,7 +180,7 @@ const createDailyCurrentAffairs = async (
 
     res.status(200).json({
       success: true,
-      data,
+      DailyCurrentAffair,
     });
   } catch (error: any) {
     res.status(500).json({
@@ -301,7 +301,7 @@ const updateDailyCurrentAffairs = async (
     res.status(200).json({
       success: true,
       message: "✅ Daily Current Affairs updated successfully",
-      data: updated,
+      DailyCurrentAffair: updated,
     });
   } catch (error: any) {
     console.error("❌ Error updating Daily Current Affairs:", error);
@@ -360,6 +360,63 @@ const updateDailyCurrentAffairs = async (
     res.status(500).json({
       success: false,
       message: "Delete failed",
+      error: error.message,
+    });
+  }
+};
+
+const deleteAllDailyCurrentAffairs = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const records = await DailyCurrentAffairsModel.find({});
+    if (!records.length) {
+      res.status(404).json({
+        success: false,
+        message: "No Daily Current Affairs records found",
+      });
+      return;
+    }
+
+    const cloudinary = req.app.locals.cloudinary;
+
+    for (const record of records) {
+      // ---- DELETE PDF FROM CLOUDINARY
+      if (record.PdfUrl) {
+        const publicId = record.PdfUrl.split("/").pop()?.split(".")[0];
+        if (publicId) {
+          await cloudinary.uploader.destroy(
+            `DailyCurrentAffairs/pdfs/${publicId}`,
+            { resource_type: "raw" }
+          );
+        }
+      }
+
+      // ---- DELETE VIDEO FROM CLOUDINARY
+      if (record.VideoUrl) {
+        const publicId = record.VideoUrl.split("/").pop()?.split(".")[0];
+        if (publicId) {
+          await cloudinary.uploader.destroy(
+            `DailyCurrentAffairs/videos/${publicId}`,
+            { resource_type: "video" }
+          );
+        }
+      }
+    }
+
+    // ---- DELETE ALL RECORDS FROM DB
+    await DailyCurrentAffairsModel.deleteMany({});
+
+    res.status(200).json({
+      success: true,
+      message: "🗑️ All Daily Current Affairs deleted successfully",
+    });
+
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: "Delete all failed",
       error: error.message,
     });
   }
@@ -466,12 +523,12 @@ const getAllMonthlyCurrentAffairs = async (
   res: Response
 ): Promise<void> => {
   try {
-    const data = await MonthlyCurrentAffairsModel.find()
+    const MonthlyCurrentAffairs = await MonthlyCurrentAffairsModel.find()
       .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
-      data,
+      MonthlyCurrentAffairs,
     });
   } catch (error: any) {
     res.status(500).json({
@@ -488,9 +545,9 @@ const getMonthlyCurrentAffairsById = async (
   try {
     const { id } = req.params;
 
-    const data = await MonthlyCurrentAffairsModel.findById(id);
+    const MonthlyCurrentAffair = await MonthlyCurrentAffairsModel.findById(id);
 
-    if (!data) {
+    if (!MonthlyCurrentAffair) {
       res.status(404).json({
         success: false,
         message: "Record not found",
@@ -500,7 +557,7 @@ const getMonthlyCurrentAffairsById = async (
 
     res.status(200).json({
       success: true,
-      data,
+      MonthlyCurrentAffair,
     });
   } catch (error: any) {
     res.status(500).json({
@@ -573,7 +630,7 @@ const updateMonthlyCurrentAffairs = async (
     res.status(200).json({
       success: true,
       message: "✅ Monthly Current Affairs updated successfully",
-      data: updated,
+      MonthlyCurrentAffair: updated,
     });
   } catch (error: any) {
     console.error("❌ Error updating Monthly Current Affairs:", error);
@@ -630,8 +687,56 @@ const deleteMonthlyCurrentAffairs = async (
 };
 
 
+const deleteAllMonthlyCurrentAffairs = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const records = await MonthlyCurrentAffairsModel.find({});
+    if (!records.length) {
+      res.status(404).json({
+        success: false,
+        message: "No records found",
+      });
+      return;
+    }
+
+    const cloudinary = req.app.locals.cloudinary;
+
+    // Loop through all records to delete PDFs from Cloudinary
+    for (const record of records) {
+      if (record.PdfUrl) {
+        const publicId = record.PdfUrl.split("/upload/")[1]
+          ?.split(".")[0]
+          ?.replace(/^v\d+\//, "");
+        if (publicId) {
+          await cloudinary.uploader.destroy(publicId, {
+            resource_type: "raw",
+          });
+        }
+      }
+    }
+
+    // Delete all records from DB
+    await MonthlyCurrentAffairsModel.deleteMany({});
+
+    res.status(200).json({
+      success: true,
+      message: "🗑️ All Monthly Current Affairs deleted successfully",
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: "Delete all failed",
+      error: error.message,
+    });
+  }
+};
+
 export default { createDailyCurrentAffairs,getAllDailyCurrentAffairs,
-    getDailyCurrentAffairsById,updateDailyCurrentAffairs,deleteDailyCurrentAffairs
+    getDailyCurrentAffairsById,updateDailyCurrentAffairs,deleteDailyCurrentAffairs,
+    deleteAllDailyCurrentAffairs
 ,deleteMonthlyCurrentAffairs,updateMonthlyCurrentAffairs,getMonthlyCurrentAffairsById,
-getAllMonthlyCurrentAffairs,createMonthlyCurrentAffairs
+getAllMonthlyCurrentAffairs,createMonthlyCurrentAffairs,
+deleteAllMonthlyCurrentAffairs
 };

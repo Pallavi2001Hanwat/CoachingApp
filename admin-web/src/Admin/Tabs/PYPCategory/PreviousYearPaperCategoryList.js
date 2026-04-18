@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
     getAllPreviousYearPaperCategorys,
     deletePreviousYearPaperCategory,
+    deleteAllPreviousYearPaperCategorys
 } from '../../../Services/AdminServices/AllServices/PreviousYearPaperCategoryService';
 
 import { useNavigate } from 'react-router-dom';
@@ -92,6 +93,19 @@ const PreviousYearPaperCategoryList = () => {
 
         }
 
+    };
+
+    // DELETE ALL FUNCTION
+    const handleDeleteAll = async () => {
+        if (window.confirm('Are you sure you want to delete ALL categories? This will also delete all associated papers.')) {
+            try {
+                const response = await deleteAllPreviousYearPaperCategorys();
+                setCategories([]); // Clear table
+                toast.success(response.message || 'All categories deleted successfully');
+            } catch (error) {
+                toast.error(error.response?.data?.message || 'Failed to delete all categories');
+            }
+        }
     };
 
     const columns = useMemo(() => [
@@ -209,13 +223,19 @@ const PreviousYearPaperCategoryList = () => {
         <div className="table-main-div">
 
             <div className="white-bg-btn">
-
                 <p>PYP Categories</p>
 
                 <button className="button" onClick={handleCreate}>
                     Create Category
                 </button>
 
+                <button
+                    className="button delete-all-button"
+                    style={{ marginLeft: '10px', backgroundColor: 'red', color: 'white' }}
+                    onClick={handleDeleteAll}
+                >
+                    Delete All
+                </button>
             </div>
 
             <div className="white-bg">

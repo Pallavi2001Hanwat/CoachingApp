@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { addDashboardItem, updateDashboardItem, getDashboardItemById } from '../../../Services/AdminServices/AllServices/DashboardItemService';
+import { addDashboardItem, updateDashboardItem, getDashboardItemById ,getNextOrderNo} from '../../../Services/AdminServices/AllServices/DashboardItemService';
 import '../../AdminStyle/AdminGlobalStyle.css';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { showResponseMessage } from '../../../Utils/showResponseMessage';
 
 const DashboardItemForm = ({ isEditMode = false }) => {
 
@@ -85,6 +84,33 @@ const DashboardItemForm = ({ isEditMode = false }) => {
 
     }, [isEditMode, id]);
 
+
+    // Load next order number for new items
+    useEffect(() => {
+
+    const fetchNextOrderNo = async () => {
+
+        try {
+
+            if (!isEditMode) {
+
+                const response = await getNextOrderNo();
+
+                if (response.success) {
+                    setOrderNumber(response.nextOrderNo);
+                }
+
+            }
+
+        } catch (err) {
+            toast.error("Failed to fetch next order number");
+        }
+
+    };
+
+    fetchNextOrderNo();
+
+}, [isEditMode]);
 
     const handleFileInputChange = (e) => {
 

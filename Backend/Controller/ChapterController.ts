@@ -1,7 +1,10 @@
 import { Request, Response } from 'express';
 import ChapterModel from '../Models/Chapter';
 import { AuthRequest } from '../Middleware/AuthMiddleware';
-
+import mongoose from "mongoose";
+import TopicModel from "../Models/TopicOrClass";
+import QuestionModel from "../Models/Question";
+import QuestionOptionModel from '../Models/QuestionOption';
 
 
 const createChapter = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -282,6 +285,134 @@ const deleteChapter = async (req: AuthRequest, res: Response): Promise<void> => 
 };
 
 
+const deleteAllChapters = async (req: AuthRequest, res: Response): Promise<void> => {
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const user = req.user;
+
+    // ✅ Auth check
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    // ✅ Role check
+    const allowedRoles = ['Admin', 'Teacher'];
+    const hasAccess = req.roles?.some((role) => allowedRoles.includes(role));
+
+    if (!hasAccess) {
+      res.status(403).json({
+        success: false,
+        message: 'Access denied: Only Admin or Teacher can delete Chapters'
+      });
+      return;
+    }
+
+    const cloudinary = req.app.locals.cloudinary;
+
+    // ✅ 1. Get Chapters
+    let chapters;
+
+    if (req.roles?.includes('Admin') || req.roles?.includes('Teacher')) {
+      chapters = await ChapterModel.find({}, "_id Image").session(session);
+    } else {
+      chapters = await ChapterModel.find({ TeacherId: user._id }, "_id Image").session(session);
+    }
+
+    if (!chapters.length) {
+      await session.abortTransaction();
+      return res.status(404).json({
+        success: false,
+        message: 'No chapters found to delete'
+      });
+    }
+
+    const chapterIds = chapters.map(c => c._id);
+
+    // ✅ 2. Get Topics
+    const topics = await TopicModel.find({
+      ChapterId: { $in: chapterIds }
+    }).session(session);
+
+    // ✅ 3. Get Questions (SAFE FILTER)
+    const questions = await QuestionModel.find({
+      ChapterId: { $exists: true, $ne: null, $in: chapterIds }
+    }).session(session);
+
+    const questionIds = questions.map(q => q._id);
+
+    // ================== ☁️ CLOUDINARY DELETE ==================
+
+    // ✅ Chapter Images
+    await Promise.all(chapters.map(async (c) => {
+      if (c.Image) {
+        const public_id = c.Image.split('/').pop()?.split('.')[0];
+        await cloudinary.uploader.destroy(`Chapters/${public_id}`);
+      }
+    }));
+
+    // ✅ Topic Thumbnails
+    await Promise.all(topics.map(async (t) => {
+      if (t.videoThumbnail) {
+        const public_id = t.videoThumbnail.split('/').pop()?.split('.')[0];
+        await cloudinary.uploader.destroy(`Topics/${public_id}`);
+      }
+    }));
+
+    // ✅ Question Images
+    await Promise.all(questions.map(async (q) => {
+      if (q.QuestionImage) {
+        const public_id = q.QuestionImage.split('/').pop()?.split('.')[0];
+        await cloudinary.uploader.destroy(`Questions/${public_id}`);
+      }
+    }));
+
+    // ================== 🧹 DATABASE DELETE ==================
+
+    // ✅ Question Options
+    await QuestionOptionModel.deleteMany({
+      QuestionId: { $in: questionIds }
+    }).session(session);
+
+    // ✅ Questions
+    await QuestionModel.deleteMany({
+      ChapterId: { $exists: true, $ne: null, $in: chapterIds }
+    }).session(session);
+
+    // ✅ Topics
+    await TopicModel.deleteMany({
+      ChapterId: { $in: chapterIds }
+    }).session(session);
+
+    // ✅ Chapters
+    await ChapterModel.deleteMany({}).session(session);
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({
+      success: true,
+      message: '✅ All chapters and related data deleted successfully',
+    });
+
+  } catch (error: any) {
+
+    await session.abortTransaction();
+    session.endSession();
+
+    console.error('❌ Error deleting all chapters:', error);
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete chapters',
+      error: error.message,
+    });
+  }
+};
+
 const getChaptersBySubjectId = async (req: Request, res: Response): Promise<void> => {
     try {
         const { id } = req.params;
@@ -299,4 +430,4 @@ const getChaptersBySubjectId = async (req: Request, res: Response): Promise<void
     }
 };
 
-export default { createChapter, getAllChapters, getChapterById, updateChapter, deleteChapter,getChaptersBySubjectId };
+export default { createChapter, getAllChapters, getChapterById, updateChapter, deleteChapter,getChaptersBySubjectId ,deleteAllChapters};

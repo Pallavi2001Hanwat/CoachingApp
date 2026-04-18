@@ -3,7 +3,10 @@ import SubjectModel from '../Models/Subject';
 import ChapterModel from '../Models/Chapter';
 
 import { AuthRequest } from '../Middleware/AuthMiddleware';
-
+import mongoose from "mongoose";
+import TopicModel from "../Models/TopicOrClass";
+import QuestionModel from "../Models/Question";
+import QuestionOptionModel from '../Models/QuestionOption';
 
 
 const createSubject = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -300,6 +303,170 @@ const updateSubject = async (req: AuthRequest, res: Response): Promise<void> => 
 };
 
 
+const deleteAllSubjects = async (req: AuthRequest, res: Response): Promise<void> => {
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const user = req.user;
+
+    // ✅ Auth check
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    // ✅ Role check
+    const allowedRoles = ['Admin', 'Teacher'];
+    const hasAccess = req.roles?.some((role) => allowedRoles.includes(role));
+
+    if (!hasAccess) {
+      res.status(403).json({
+        success: false,
+        message: 'Access denied: Only Admin or Teacher can delete Subjects'
+      });
+      return;
+    }
+
+    const cloudinary = req.app.locals.cloudinary;
+
+    // ✅ 1. Get Subjects
+    let subjects;
+
+    if (req.roles?.includes('Admin') || req.roles?.includes('Teacher')) {
+      subjects = await SubjectModel.find({}, "_id Image").session(session);
+    } else {
+      subjects = await SubjectModel.find({ TeacherId: user._id }, "_id Image").session(session);
+    }
+
+    if (!subjects.length) {
+      await session.abortTransaction();
+      return res.status(404).json({
+        success: false,
+        message: 'No subjects found to delete'
+      });
+    }
+
+    const subjectIds = subjects.map(s => s._id);
+
+    // ✅ 2. Get Chapters
+    const chapters = await ChapterModel.find({
+      SubjectId: { $in: subjectIds }
+    }).session(session);
+
+    const chapterIds = chapters.map(c => c._id);
+
+    // ✅ 3. Get Topics
+    const topics = await TopicModel.find({
+      SubjectId: { $in: subjectIds }
+    }).session(session);
+
+    // ✅ 4. Get Questions (SAFE FILTER)
+    const questions = await QuestionModel.find({
+      $or: [
+        {
+          SubjectId: { $exists: true, $ne: null, $in: subjectIds }
+        },
+        {
+          ChapterId: { $exists: true, $ne: null, $in: chapterIds }
+        }
+      ]
+    }).session(session);
+
+    const questionIds = questions.map(q => q._id);
+
+    // ================== ☁️ CLOUDINARY DELETE ==================
+
+    // ✅ Subjects Images
+    await Promise.all(subjects.map(async (s) => {
+      if (s.Image) {
+        const public_id = s.Image.split('/').pop()?.split('.')[0];
+        await cloudinary.uploader.destroy(`Subjects/${public_id}`);
+      }
+    }));
+
+    // ✅ Chapters Images
+    await Promise.all(chapters.map(async (c) => {
+      if (c.Image) {
+        const public_id = c.Image.split('/').pop()?.split('.')[0];
+        await cloudinary.uploader.destroy(`Chapters/${public_id}`);
+      }
+    }));
+
+    // ✅ Topics Thumbnails
+    await Promise.all(topics.map(async (t) => {
+      if (t.videoThumbnail) {
+        const public_id = t.videoThumbnail.split('/').pop()?.split('.')[0];
+        await cloudinary.uploader.destroy(`Topics/${public_id}`);
+      }
+    }));
+
+    // ✅ Question Images
+    await Promise.all(questions.map(async (q) => {
+      if (q.QuestionImage) {
+        const public_id = q.QuestionImage.split('/').pop()?.split('.')[0];
+        await cloudinary.uploader.destroy(`Questions/${public_id}`);
+      }
+    }));
+
+    // ================== 🧹 DATABASE DELETE ==================
+
+    // ✅ Question Options
+    await QuestionOptionModel.deleteMany({
+      QuestionId: { $in: questionIds }
+    }).session(session);
+
+    // ✅ Questions (SAFE DELETE)
+    await QuestionModel.deleteMany({
+      $or: [
+        {
+          SubjectId: { $exists: true, $ne: null, $in: subjectIds }
+        },
+        {
+          ChapterId: { $exists: true, $ne: null, $in: chapterIds }
+        }
+      ]
+    }).session(session);
+
+    // ✅ Topics
+    await TopicModel.deleteMany({
+      SubjectId: { $in: subjectIds }
+    }).session(session);
+
+    // ✅ Chapters
+    await ChapterModel.deleteMany({
+      SubjectId: { $in: subjectIds }
+    }).session(session);
+
+    // ✅ Subjects
+   
+      await SubjectModel.deleteMany({}).session(session);
+    
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({
+      success: true,
+      message: '✅ All subjects and related data deleted successfully',
+    });
+
+  } catch (error: any) {
+
+    await session.abortTransaction();
+    session.endSession();
+
+    console.error('❌ Error deleting all subjects:', error);
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete subjects',
+      error: error.message,
+    });
+  }
+};
+
  const getChaptersBySubjectId = async (
   req: Request,
   res: Response
@@ -324,4 +491,4 @@ const updateSubject = async (req: AuthRequest, res: Response): Promise<void> => 
   }
 };
 
-export default { createSubject,getAllSubjects,getSubjectById,updateSubject,deleteSubject,getChaptersBySubjectId};
+export default { createSubject,getAllSubjects,getSubjectById,updateSubject,deleteSubject,getChaptersBySubjectId,deleteAllSubjects};

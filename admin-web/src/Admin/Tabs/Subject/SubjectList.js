@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
     getAllSubjects,
     deleteSubject,
+    deleteAllSubjects
 } from '../../../Services/AdminServices/AllServices/SubjectService';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -98,6 +99,18 @@ const SubjectList = () => {
 
     };
 
+
+    const handleDeleteAll = async () => {
+    if (window.confirm('Are you sure you want to delete ALL subjects?')) {
+        try {
+            const response = await deleteAllSubjects();
+            setSubjects([]); // clear table
+            toast.success(response.message || 'All subjects deleted successfully');
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Failed to delete all subjects');
+        }
+    }
+};
 
     const columns = useMemo(() => [
 
@@ -258,9 +271,24 @@ const SubjectList = () => {
 
                 <p>Subjects</p>
 
-                <button className="button" onClick={handleCreate}>
+                <div>
+<button className="button" onClick={handleCreate}>
                     Create Subject
                 </button>
+
+
+
+                <button
+            className="delete-All-button"
+            onClick={handleDeleteAll}
+           
+            disabled={subjects.length === 0} // ✅ optional safety
+        >
+            Delete All
+        </button>
+                </div>
+
+                
 
             </div>
 

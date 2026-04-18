@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   getAllPreviousYearPapers,
   deletePreviousYearPaper,
+  deleteAllPreviousYearPapers
 } from '../../../Services/AdminServices/AllServices/PreviousYearPaperService';
 
 import { useNavigate } from 'react-router-dom';
@@ -94,6 +95,18 @@ const PreviousYearPaperList = () => {
 
   };
 
+
+  const handleDeleteAll = async () => {
+  if (window.confirm('Are you sure you want to delete ALL papers? This action cannot be undone.')) {
+    try {
+      const response = await deleteAllPreviousYearPapers();
+      setPapers([]); // Clear table
+      toast.success(response.message || 'All papers deleted successfully');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to delete all papers');
+    }
+  }
+};
   const columns = useMemo(() => [
 
     {
@@ -254,14 +267,20 @@ const PreviousYearPaperList = () => {
     <div className="table-main-div">
 
       <div className="white-bg-btn">
+  <p>Previous Year Papers</p>
 
-        <p>Previous Year Papers</p>
+  <button className="button" onClick={handleCreate}>
+    Create Paper
+  </button>
 
-        <button className="button" onClick={handleCreate}>
-          Create Paper
-        </button>
-
-      </div>
+  <button
+    className="button delete-all-button"
+    style={{ marginLeft: '10px', backgroundColor: 'red', color: 'white' }}
+    onClick={handleDeleteAll}
+  >
+    Delete All
+  </button>
+</div>
 
       <div className="white-bg">
 

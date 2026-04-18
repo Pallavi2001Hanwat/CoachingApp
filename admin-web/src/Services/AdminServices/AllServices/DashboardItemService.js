@@ -61,3 +61,25 @@ export const deleteDashboardItem = async (DashboardItemId) => {
 };
 
 
+// Delete All DashboardItems
+export const deleteAllDashboardItems = async () => {
+    try {
+        const response = await api.delete('/delete-AllDashboard_Items');
+        return response.data;
+    } catch (error) {
+        console.error('Error deleting DashboardItem:', error);
+        throw error;
+    }
+};
+
+export const getNextOrderNo = async () => {
+    try {
+        const response = await api.get('/get-NextOrderNo');
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching next order number:', error);
+        throw error;
+    }
+};
+
+

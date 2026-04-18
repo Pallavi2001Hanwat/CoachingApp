@@ -61,6 +61,18 @@ export const deleteTestSeries = async (TestSeriesId) => {
 };
 
 
+// Delete TestSeries
+export const deleteAllTestSeries = async () => {
+    try {
+        const response = await api.delete(`/delete-AllTestSeries`);
+        return response.data;
+    } catch (error) {
+        console.error('Error deleting TestSeries:', error);
+        throw error;
+    }
+};
+
+
 export const getTestSeriesByCategory = async (categoryId) => {
     try {
         

@@ -59,3 +59,16 @@ export const deleteSubject = async (SubjectId) => {
         throw error;
     }
 };
+
+
+
+
+export const deleteAllSubjects = async () => {
+    try {
+        const response = await api.delete('/delete-AllSubjects');
+        return response.data;
+    } catch (error) {
+        console.error('Error deleting all Subjects:', error);
+        throw error;
+    }
+};

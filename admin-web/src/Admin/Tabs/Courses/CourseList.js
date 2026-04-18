@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
     getAllCourses,
     deleteCourse,
+    deleteAllCourses 
 } from '../../../Services/AdminServices/AllServices/CourseService';
 
 import { useNavigate } from 'react-router-dom';
@@ -95,6 +96,28 @@ const CourseList = () => {
 
     };
 
+
+    const handleDeleteAll = async () => {
+
+    if (window.confirm('Are you sure you want to delete ALL courses? This action cannot be undone!')) {
+
+        try {
+
+            const response = await deleteAllCourses();
+
+            setCourses([]); // ✅ UI clear
+
+            toast.success(response.message || 'All courses deleted successfully');
+
+        } catch (error) {
+
+            toast.error(error.response?.data?.message || 'Failed to delete all courses');
+
+        }
+
+    }
+
+};
     const columns = useMemo(() => [
 
         {
@@ -313,13 +336,26 @@ const CourseList = () => {
 
             <div className="white-bg-btn">
 
-                <p>Courses</p>
+    <p>Courses</p>
 
-                <button className="button" onClick={handleCreate}>
-                    Create Course
-                </button>
+    <div>
 
-            </div>
+        <button className="button" onClick={handleCreate}>
+            Create Course
+        </button>
+
+        <button
+            className="delete-All-button"
+            onClick={handleDeleteAll}
+           
+            disabled={courses.length === 0} // ✅ optional safety
+        >
+            Delete All
+        </button>
+
+    </div>
+
+</div>
 
             <div className="white-bg">
 

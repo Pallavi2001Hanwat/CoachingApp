@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   getAllTestSeriess,
   deleteTestSeries,
-  getTestSeriesByCategory
+  getTestSeriesByCategory,
+  deleteAllTestSeries
 } from "../../../Services/AdminServices/AllServices/TestSeriesService";
 
 import { getAllCategories } from "../../../Services/AdminServices/AllServices/CategoryService";
@@ -25,7 +26,6 @@ const TestSeriesList = () => {
   const [testSeries, setTestSeries] = useState([]);
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("");
-
   const [globalFilter, setGlobalFilter] = useState("");
 
   const navigate = useNavigate();
@@ -35,11 +35,9 @@ const TestSeriesList = () => {
   const [pageSize, setPageSize] = useState(5);
 
   // ---------------- LOAD CATEGORIES ----------------
-
   const loadCategories = async () => {
 
     try {
-
       const res = await getAllCategories();
 
       if (res.success) {
@@ -47,19 +45,15 @@ const TestSeriesList = () => {
       }
 
     } catch {
-
       toast.error("Failed to load categories");
-
     }
 
   };
 
   // ---------------- LOAD ALL SERIES ----------------
-
   const loadAllSeries = async () => {
 
     try {
-
       const res = await getAllTestSeriess();
 
       if (res.TestSeries) {
@@ -67,50 +61,39 @@ const TestSeriesList = () => {
       }
 
     } catch {
-
       toast.error("Failed to load TestSeries");
-
     }
 
   };
 
   // ---------------- LOAD CATEGORY SERIES ----------------
-
   const loadSeriesByCategory = async (categoryId) => {
 
     try {
-
       const res = await getTestSeriesByCategory(categoryId);
-
+console.log(res.TestSeries)
       if (res.TestSeries) {
         setTestSeries(res.TestSeries);
       }
 
     } catch {
-
       toast.error("Failed to load category TestSeries");
-
     }
 
   };
 
   // ---------------- INITIAL LOAD ----------------
-
   useEffect(() => {
 
     if (!isFetchedRef.current) {
-
       loadCategories();
       loadAllSeries();
-
       isFetchedRef.current = true;
-
     }
 
   }, []);
 
   // ---------------- CATEGORY CHANGE ----------------
-
   const handleCategoryChange = (categoryId) => {
 
     setSelectedCategory(categoryId);
@@ -124,23 +107,16 @@ const TestSeriesList = () => {
   };
 
   // ---------------- CREATE ----------------
-
   const handleCreate = () => {
-
     navigate("/admin/TestSeries/create");
-
   };
 
   // ---------------- EDIT ----------------
-
   const handleEdit = (id) => {
-
     navigate(`/admin/TestSeries/edit/${id}`);
-
   };
 
   // ---------------- DELETE ----------------
-
   const handleDelete = async (id) => {
 
     if (window.confirm("Are you sure you want to delete this TestSeries?")) {
@@ -165,8 +141,34 @@ const TestSeriesList = () => {
 
   };
 
-  // ---------------- TABLE COLUMNS ----------------
+  // ---------------- DELETE ALL ----------------
+  const handleDeleteAll = async () => {
 
+    const confirmDelete = window.confirm(
+      "⚠️ Are you sure?\nThis will delete ALL TestSeries permanently!"
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+
+      const res = await deleteAllTestSeries();
+
+      toast.success(res.message || "All TestSeries deleted");
+
+      setTestSeries([]);
+
+    } catch (error) {
+
+      toast.error(
+        error.response?.data?.message || "Failed to delete all TestSeries"
+      );
+
+    }
+
+  };
+
+  // ---------------- TABLE COLUMNS ----------------
   const columns = useMemo(() => [
 
     {
@@ -191,11 +193,26 @@ const TestSeriesList = () => {
     },
 
     {
-      accessorKey: "CategoryId",
-      header: "Category",
+  accessorKey: "CategoryId",
+  header: "Category",
 
-      cell: ({ row }) => row.original.CategoryId?.CategoryName || "-"
-    },
+  cell: ({ row }) => {
+    const categoryData = row.original.CategoryId;
+
+    // Agar populated object hai
+    if (categoryData && typeof categoryData === "object" && categoryData.CategoryName) {
+      return categoryData.CategoryName;
+    }
+
+    // Agar sirf id string hai
+    if (categoryData && typeof categoryData === "string") {
+      const category = categories.find(cat => cat._id === categoryData);
+      return category ? category.CategoryName : "-";
+    }
+
+    return "-";
+  }
+},
 
     {
       header: "Price",
@@ -211,8 +228,7 @@ const TestSeriesList = () => {
       cell: ({ row }) => (
         <span
           style={{
-            color:
-              row.original.Status === "Active" ? "green" : "red",
+            color: row.original.Status === "Active" ? "green" : "red",
             fontWeight: "bold"
           }}
         >
@@ -248,10 +264,9 @@ const TestSeriesList = () => {
       )
     }
 
-  ], []);
+  ], [categories]); // ✅ IMPORTANT FIX
 
   // ---------------- TABLE ----------------
-
   const table = useReactTable({
 
     data: testSeries,
@@ -285,9 +300,20 @@ const TestSeriesList = () => {
 
         <p>Test Series</p>
 
-        <button className="button" onClick={handleCreate}>
-          Create TestSeries
-        </button>
+        <div style={{ display: "flex", gap: "10px" }}>
+
+          <button className="button" onClick={handleCreate}>
+            Create TestSeries
+          </button>
+
+          <button
+            className="button delete-button"
+            onClick={handleDeleteAll}
+          >
+            Delete All
+          </button>
+
+        </div>
 
       </div>
 
@@ -306,12 +332,10 @@ const TestSeriesList = () => {
                 setPageSize(Number(e.target.value));
               }}
             >
-
               <option value={5}>5</option>
               <option value={10}>10</option>
               <option value={25}>25</option>
               <option value={50}>50</option>
-
             </select>
 
             <span>entries</span>
@@ -329,22 +353,18 @@ const TestSeriesList = () => {
         </div>
 
         {/* CATEGORY FILTER */}
-
         <div style={{ marginBottom: "10px" }}>
 
           <select
             value={selectedCategory}
             onChange={(e) => handleCategoryChange(e.target.value)}
           >
-
             <option value="">All Categories</option>
 
             {categories.map((cat) => (
-
               <option key={cat._id} value={cat._id}>
                 {cat.CategoryName}
               </option>
-
             ))}
 
           </select>
@@ -352,32 +372,23 @@ const TestSeriesList = () => {
         </div>
 
         {/* TABLE */}
-
         <div className="responsive-table-container">
 
           <table className="responsive-table">
 
             <thead>
-
               {table.getHeaderGroups().map((headerGroup) => (
-
                 <tr key={headerGroup.id}>
-
                   {headerGroup.headers.map((header) => (
-
                     <th key={header.id}>
                       {flexRender(
                         header.column.columnDef.header,
                         header.getContext()
                       )}
                     </th>
-
                   ))}
-
                 </tr>
-
               ))}
-
             </thead>
 
             <tbody>
@@ -387,18 +398,14 @@ const TestSeriesList = () => {
                 table.getRowModel().rows.map((row) => (
 
                   <tr key={row.id}>
-
                     {row.getVisibleCells().map((cell) => (
-
                       <td key={cell.id}>
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext()
                         )}
                       </td>
-
                     ))}
-
                   </tr>
 
                 ))
@@ -406,11 +413,9 @@ const TestSeriesList = () => {
               ) : (
 
                 <tr>
-
                   <td colSpan={columns.length} style={{ textAlign: "center" }}>
                     No TestSeries found
                   </td>
-
                 </tr>
 
               )}
@@ -422,7 +427,6 @@ const TestSeriesList = () => {
         </div>
 
         {/* PAGINATION */}
-
         <div className="text-end">
 
           <button

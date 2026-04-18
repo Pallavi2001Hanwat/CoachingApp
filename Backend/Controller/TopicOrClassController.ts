@@ -1,6 +1,10 @@
 import { Request, Response } from 'express';
 import TopicOrClassModel from '../Models/TopicOrClass';
 import { AuthRequest } from '../Middleware/AuthMiddleware';
+import mongoose from "mongoose";
+
+import QuestionModel from "../Models/Question";
+import QuestionOptionModel from '../Models/QuestionOption';
 
 
 
@@ -555,6 +559,114 @@ const deleteTopicOrClass = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
+const deleteAllTopics = async (req: AuthRequest, res: Response): Promise<void> => {
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const user = req.user;
+
+    // ✅ Auth check
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    // ✅ Role check
+    const allowedRoles = ['Admin', 'Teacher'];
+    const hasAccess = req.roles?.some(role => allowedRoles.includes(role));
+
+    if (!hasAccess) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: Only Admin or Teacher can delete Topics'
+      });
+    }
+
+    const cloudinary = req.app.locals.cloudinary;
+
+    // ✅ 1. Get Topics
+    let topics;
+
+    if (req.roles?.includes('Admin') || req.roles?.includes('Teacher')) {
+      topics = await TopicOrClassModel.find({}, "_id videoThumbnail").session(session);
+    } else {
+      topics = await TopicOrClassModel.find({ CreatedBy: user._id }, "_id videoThumbnail").session(session);
+    }
+
+    if (!topics.length) {
+      await session.abortTransaction();
+      return res.status(404).json({
+        success: false,
+        message: 'No topics found to delete'
+      });
+    }
+
+    const topicIds = topics.map(t => t._id);
+
+    // ✅ 2. Get Questions (SAFE FILTER)
+    const questions = await QuestionModel.find({
+      TopicId: { $exists: true, $ne: null, $in: topicIds }
+    }).session(session);
+
+    const questionIds = questions.map(q => q._id);
+
+    // ================== ☁️ CLOUDINARY DELETE ==================
+
+    // ✅ Topic Thumbnails
+    await Promise.all(topics.map(async (t) => {
+      if (t.videoThumbnail) {
+        const public_id = t.videoThumbnail.split('/').pop()?.split('.')[0];
+        await cloudinary.uploader.destroy(`Topics/${public_id}`);
+      }
+    }));
+
+    // ✅ Question Images
+    await Promise.all(questions.map(async (q) => {
+      if (q.QuestionImage) {
+        const public_id = q.QuestionImage.split('/').pop()?.split('.')[0];
+        await cloudinary.uploader.destroy(`Questions/${public_id}`);
+      }
+    }));
+
+    // ================== 🧹 DATABASE DELETE ==================
+
+    // ✅ Question Options
+    await QuestionOptionModel.deleteMany({
+      QuestionId: { $in: questionIds }
+    }).session(session);
+
+    // ✅ Questions
+    await QuestionModel.deleteMany({
+      TopicId: { $exists: true, $ne: null, $in: topicIds }
+    }).session(session);
+
+    // ✅ Topics
+    await TopicOrClassModel.deleteMany({}).session(session);
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.status(200).json({
+      success: true,
+      message: '✅ All topics and related data deleted successfully',
+    });
+
+  } catch (error: any) {
+
+    await session.abortTransaction();
+    session.endSession();
+
+    console.error('❌ Error deleting all topics:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to delete topics',
+      error: error.message,
+    });
+  }
+};
+
 
 const getTopicsByChapterId = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -574,4 +686,5 @@ const getTopicsByChapterId = async (req: Request, res: Response): Promise<void> 
 };
 
 
-export default { createTopicOrClass,getAllTopicOrClasss,getTopicOrClassById,updateTopicOrClass,deleteTopicOrClass,getTopicsByChapterId};
+export default { createTopicOrClass,getAllTopicOrClasss,getTopicOrClassById,
+  updateTopicOrClass,deleteTopicOrClass,getTopicsByChapterId,deleteAllTopics};

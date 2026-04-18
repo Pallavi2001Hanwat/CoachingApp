@@ -26,6 +26,16 @@ import TestSeriesForm from '../Admin/Tabs/TestSeries/TestSeriesForm';
 import TestSeriesList from '../Admin/Tabs/TestSeries/TestSeriesList';
 import TestPaperList from '../Admin/Tabs/TestPaper/TestPaperList';
 import TestPaperForm from '../Admin/Tabs/TestPaper/TestPaperForm';
+import SyllabusCategoryForm from '../Admin/Tabs/SyllabusManagementt/SyllabusCategory/SyllabusCategoryForm';
+import SyllabusCategoryList from '../Admin/Tabs/SyllabusManagementt/SyllabusCategory/SyllabusCategoryList';
+import SyllabusList from '../Admin/Tabs/SyllabusManagementt/Syllabus/SyllabusList';
+import SyllabusForm from '../Admin/Tabs/SyllabusManagementt/Syllabus/SyllabusForm';
+import DailyCurrentAffairForm from '../Admin/Tabs/CurrentAffairManagement/DailyCurrentAffair/DailyCurrentAffairForm';
+import DailyCurrentAffairList from '../Admin/Tabs/CurrentAffairManagement/DailyCurrentAffair/DailyCurrentAffairList';
+import MonthlyCurrentAffairForm from '../Admin/Tabs/CurrentAffairManagement/MonthlyCurrentAffair/MonthlyCurrentAffairForm';
+import MonthlyCurrentAffairList from '../Admin/Tabs/CurrentAffairManagement/MonthlyCurrentAffair/MonthlyCurrentAffairList';
+import QuestionList from '../Admin/Tabs/Question/QuestionList';
+import QuestionForm from '../Admin/Tabs/Question/QuestionForm';
 
 
 
@@ -45,19 +55,28 @@ const AdminRoutes = () => {
     "/admin/Course",
     "/admin/DashboardItems",
     "/admin/DashboardItem",
-     "/admin/Subjects",
+    "/admin/Subjects",
     "/admin/Subject",
-     "/admin/Chapters",
+    "/admin/Chapters",
     "/admin/Chapter",
-     "/admin/Topics",
+    "/admin/Topics",
     "/admin/Topic",
-     "/admin/PreviousYearPaperCategorys",
+    "/admin/PreviousYearPaperCategorys",
     "/admin/PreviousYearPaperCategory",
- "/admin/PreviousYearPapers",
+    "/admin/PreviousYearPapers",
     "/admin/PreviousYearPaper",
     "/admin/TestSeries",
     "/admin/TestPaper",
     "/admin/TestPapers",
+    "/admin/SyllabusCategory",
+    "/admin/Syllabus",
+    "/admin/DailyCurrentAffair",
+    "/admin/MonthlyCurrentAffair",
+    "/admin/QuestionWithOption",
+    "/admin/Questions"
+
+
+
 
 
 
@@ -227,7 +246,7 @@ const AdminRoutes = () => {
 
 
 
-         {/* Topic route */}
+        {/* Topic route */}
         <Route path="/Topic/create"
           element={<AuthGuard allowedRoles={['Admin', 'Teacher']}> <TopicForm isEditMode={false} /> </AuthGuard>} />
         <Route
@@ -248,8 +267,8 @@ const AdminRoutes = () => {
         />
 
 
-        
-         {/* PreviousYearPaperCategory route */}
+
+        {/* PreviousYearPaperCategory route */}
         <Route path="/PreviousYearPaperCategory/create"
           element={<AuthGuard allowedRoles={['Admin', 'Teacher']}> <PreviousYearPaperCategoryForm isEditMode={false} /> </AuthGuard>} />
         <Route
@@ -270,7 +289,7 @@ const AdminRoutes = () => {
         />
 
 
-{/* PreviousYearPaper route */}
+        {/* PreviousYearPaper route */}
         <Route path="/PreviousYearPaper/create"
           element={<AuthGuard allowedRoles={['Admin', 'Teacher']}> <PreviousYearPaperForm isEditMode={false} /> </AuthGuard>} />
         <Route
@@ -311,7 +330,7 @@ const AdminRoutes = () => {
         />
 
 
-         {/* TestPaper route */}
+        {/* TestPaper route */}
         <Route path="/TestPaper/create"
           element={<AuthGuard allowedRoles={['Admin', 'Teacher']}> <TestPaperForm isEditMode={false} /> </AuthGuard>} />
         <Route
@@ -331,6 +350,108 @@ const AdminRoutes = () => {
           }
         />
 
+        {/* SyllabusCategory route */}
+        <Route path="/SyllabusCategory/create"
+          element={<AuthGuard allowedRoles={['Admin', 'Teacher']}> <SyllabusCategoryForm isEditMode={false} /> </AuthGuard>} />
+        <Route
+          path="/SyllabusCategory/edit/:id"
+          element={
+            <AuthGuard allowedRoles={['Admin', 'Teacher']}>
+              <SyllabusCategoryForm isEditMode={true} />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/SyllabusCategory"
+          element={
+            <AuthGuard allowedRoles={['Admin', 'Teacher']}>
+              <SyllabusCategoryList />
+            </AuthGuard>
+          }
+        />
+
+
+        {/* Syllabus route */}
+        <Route path="/Syllabus/create"
+          element={<AuthGuard allowedRoles={['Admin', 'Teacher']}> <SyllabusForm isEditMode={false} /> </AuthGuard>} />
+        <Route
+          path="/Syllabus/edit/:id"
+          element={
+            <AuthGuard allowedRoles={['Admin', 'Teacher']}>
+              <SyllabusForm isEditMode={true} />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/Syllabus"
+          element={
+            <AuthGuard allowedRoles={['Admin', 'Teacher']}>
+              <SyllabusList />
+            </AuthGuard>
+          }
+        />
+
+
+        {/* DailyCurrentAffair route */}
+        <Route path="/DailyCurrentAffair/create"
+          element={<AuthGuard allowedRoles={['Admin', 'Teacher']}> <DailyCurrentAffairForm isEditMode={false} /> </AuthGuard>} />
+        <Route
+          path="/DailyCurrentAffair/edit/:id"
+          element={
+            <AuthGuard allowedRoles={['Admin', 'Teacher']}>
+              <DailyCurrentAffairForm isEditMode={true} />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/DailyCurrentAffair"
+          element={
+            <AuthGuard allowedRoles={['Admin', 'Teacher']}>
+              <DailyCurrentAffairList />
+            </AuthGuard>
+          }
+        />
+
+
+        {/* MonthlyCurrentAffair route */}
+        <Route path="/MonthlyCurrentAffair/create"
+          element={<AuthGuard allowedRoles={['Admin', 'Teacher']}> <MonthlyCurrentAffairForm isEditMode={false} /> </AuthGuard>} />
+        <Route
+          path="/MonthlyCurrentAffair/edit/:id"
+          element={
+            <AuthGuard allowedRoles={['Admin', 'Teacher']}>
+              <MonthlyCurrentAffairForm isEditMode={true} />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/MonthlyCurrentAffair"
+          element={
+            <AuthGuard allowedRoles={['Admin', 'Teacher']}>
+              <MonthlyCurrentAffairList />
+            </AuthGuard>
+          }
+        />
+
+        {/* Question route */}
+        <Route path="/QuestionWithOption/create"
+          element={<AuthGuard allowedRoles={['Admin', 'Teacher']}> <QuestionForm isEditMode={false} /> </AuthGuard>} />
+        <Route
+          path="/QuestionWithOption/edit/:id"
+          element={
+            <AuthGuard allowedRoles={['Admin', 'Teacher']}>
+              <QuestionForm isEditMode={true} />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/Questions"
+          element={
+            <AuthGuard allowedRoles={['Admin', 'Teacher']}>
+              <QuestionList />
+            </AuthGuard>
+          }
+        />
 
       </Routes>
     </AdminLayout>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
     getAllDashboardItems,
     deleteDashboardItem,
+    deleteAllDashboardItems
 } from '../../../Services/AdminServices/AllServices/DashboardItemService';
 
 import { useNavigate } from 'react-router-dom';
@@ -95,156 +96,171 @@ const DashboardItemList = () => {
 
     };
 
-   const columns = useMemo(() => [
+    // 1️⃣ Add this function inside DashboardItemList component
+    const handleDeleteAll = async () => {
+        if (window.confirm("Are you sure you want to delete ALL DashboardItems? This action cannot be undone.")) {
+            try {
+                const response = await deleteAllDashboardItems(); // call service
+                if (response.success) {
+                    setDashboardItems([]); // clear local state
+                    toast.success(response.message || "All DashboardItems deleted successfully");
+                }
+            } catch (error) {
+                toast.error(error.response?.data?.message || "Failed to delete all DashboardItems");
+            }
+        }
+    };
 
-    {
-        accessorKey: 'Image',
-        header: 'Image',
+    const columns = useMemo(() => [
 
-        cell: ({ row }) => (
+        {
+            accessorKey: 'Image',
+            header: 'Image',
 
-            row.original.Image ?
+            cell: ({ row }) => (
 
-                <img
-                    src={row.original.Image}
-                    alt="DashboardItem"
+                row.original.Image ?
+
+                    <img
+                        src={row.original.Image}
+                        alt="DashboardItem"
+                        style={{
+                            height: '50px',
+                            width: '50px',
+                            objectFit: 'cover',
+                            borderRadius: '6px'
+                        }}
+                    />
+
+                    :
+
+                    'No Image'
+
+            ),
+        },
+
+        {
+            accessorKey: 'Title',
+            header: 'Title',
+        },
+
+        {
+            accessorKey: 'Type',
+            header: 'Type',
+        },
+
+        {
+            accessorKey: 'Action',
+            header: 'Action',
+
+            cell: ({ row }) => (
+
+                row.original.Action ?
+
+                    <a
+                        href={row.original.Action}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: '#007bff' }}
+                    >
+                        Open
+                    </a>
+
+                    :
+
+                    '-'
+
+            )
+
+        },
+
+        {
+            accessorKey: 'Visibility',
+            header: 'Visibility',
+
+            cell: ({ row }) => (
+
+                <span
                     style={{
-                        height: '50px',
-                        width: '50px',
-                        objectFit: 'cover',
-                        borderRadius: '6px'
+                        color:
+                            row.original.Visibility === 'Free'
+                                ? 'green'
+                                : 'orange',
+                        fontWeight: 'bold'
                     }}
-                />
-
-                :
-
-                'No Image'
-
-        ),
-    },
-
-    {
-        accessorKey: 'Title',
-        header: 'Title',
-    },
-
-    {
-        accessorKey: 'Type',
-        header: 'Type',
-    },
-
-    {
-        accessorKey: 'Action',
-        header: 'Action',
-
-        cell: ({ row }) => (
-
-            row.original.Action ?
-
-                <a
-                    href={row.original.Action}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ color: '#007bff' }}
                 >
-                    Open
-                </a>
+                    {row.original.Visibility}
+                </span>
 
-                :
+            )
 
-                '-'
+        },
 
-        )
+        {
+            accessorKey: 'OrderNumber',
+            header: 'Order',
 
-    },
+            cell: ({ row }) => (
 
-    {
-        accessorKey: 'Visibility',
-        header: 'Visibility',
+                <span style={{ fontWeight: 'bold' }}>
+                    {row.original.OrderNumber}
+                </span>
 
-        cell: ({ row }) => (
+            )
 
-            <span
-                style={{
-                    color:
-                        row.original.Visibility === 'Free'
-                            ? 'green'
-                            : 'orange',
-                    fontWeight: 'bold'
-                }}
-            >
-                {row.original.Visibility}
-            </span>
+        },
 
-        )
+        {
+            accessorKey: 'Status',
+            header: 'Status',
 
-    },
+            cell: ({ row }) => (
 
-    {
-        accessorKey: 'OrderNumber',
-        header: 'Order',
-
-        cell: ({ row }) => (
-
-            <span style={{ fontWeight: 'bold' }}>
-                {row.original.OrderNumber}
-            </span>
-
-        )
-
-    },
-
-    {
-        accessorKey: 'Status',
-        header: 'Status',
-
-        cell: ({ row }) => (
-
-            <span
-                style={{
-                    color:
-                        row.original.Status === 'Active'
-                            ? 'green'
-                            : 'red',
-                    fontWeight: 'bold'
-                }}
-            >
-                {row.original.Status}
-            </span>
-
-        )
-
-    },
-
-    {
-        id: 'actions',
-        header: 'Actions',
-
-        cell: ({ row }) => (
-
-            <div className="action-buttons">
-
-                <button
-                    className="gridbutton"
-                    onClick={() => handleEdit(row.original._id)}
+                <span
+                    style={{
+                        color:
+                            row.original.Status === 'Active'
+                                ? 'green'
+                                : 'red',
+                        fontWeight: 'bold'
+                    }}
                 >
-                    Edit
-                </button>
+                    {row.original.Status}
+                </span>
 
-                <button
-                    className="gridbutton delete-button"
-                    onClick={() => handleDelete(row.original._id)}
-                >
-                    Delete
-                </button>
+            )
 
-            </div>
+        },
 
-        ),
+        {
+            id: 'actions',
+            header: 'Actions',
 
-    },
+            cell: ({ row }) => (
 
-], []);
+                <div className="action-buttons">
+
+                    <button
+                        className="gridbutton"
+                        onClick={() => handleEdit(row.original._id)}
+                    >
+                        Edit
+                    </button>
+
+                    <button
+                        className="gridbutton delete-button"
+                        onClick={() => handleDelete(row.original._id)}
+                    >
+                        Delete
+                    </button>
+
+                </div>
+
+            ),
+
+        },
+
+    ], []);
 
     const table = useReactTable({
 
@@ -279,9 +295,22 @@ const DashboardItemList = () => {
 
                 <p>DashboardItems</p>
 
-                <button className="button" onClick={handleCreate}>
-                    Create DashboardItem
-                </button>
+                <div>
+                    <button className="button" onClick={handleCreate}>
+                        Create DashboardItem
+                    </button>
+
+                    <button
+                        className="delete-All-button"
+                        
+                        onClick={handleDeleteAll}
+                    >
+                        Delete All
+                    </button>
+
+                </div>
+
+
 
             </div>
 

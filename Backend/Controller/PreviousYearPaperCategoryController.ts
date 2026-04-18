@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import PreviousYearPaperCategoryModel from '../Models/PreviousYearPaperCategory';
+import PreviousYearPaperModel from '../Models/PreviousYearPaper';
 import { AuthRequest } from '../Middleware/AuthMiddleware';
-
+import mongoose from "mongoose";
 
 const createPYPCategory = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -284,10 +285,79 @@ const deletePYPCategory = async (req: AuthRequest, res: Response): Promise<void>
 
 
 
+
+
+ const deleteAllPYPCategories = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    // ✅ Role check
+    const allowedRoles = ['Admin', 'Teacher'];
+    const hasAccess = req.roles?.some(role => allowedRoles.includes(role));
+    if (!hasAccess) {
+      res.status(403).json({ success: false, message: 'Access denied' });
+      return;
+    }
+
+    // Fetch all categories
+    const categories = await PreviousYearPaperCategoryModel.find();
+    if (!categories.length) {
+      res.status(404).json({ success: false, message: 'No categories found' });
+      return;
+    }
+
+    const cloudinary = req.app.locals.cloudinary;
+
+    // Loop through categories
+    for (const category of categories) {
+
+      // Delete category image from Cloudinary
+      if (category.Image) {
+        try {
+          const parts = category.Image.split('/');
+          const fileName = parts[parts.length - 1]; // abc123.jpg
+          const folderName = 'PreviousYearPaperCategory';
+          const publicId = `${folderName}/${fileName.split('.')[0]}`;
+
+          await cloudinary.uploader.destroy(publicId);
+        } catch (err) {
+          console.error(`Failed to delete image for category ${category._id}:`, err);
+        }
+      }
+
+      // Delete all papers linked to this category
+      await PreviousYearPaperModel.deleteMany({ PYPCategoryId: category._id });
+    }
+
+    // Delete all categories
+    await PreviousYearPaperCategoryModel.deleteMany();
+
+    res.status(200).json({
+      success: true,
+      message: '✅ All PreviousYearPaperCategories and linked papers deleted successfully',
+    });
+
+  } catch (error: any) {
+    console.error('Error deleting all PYP categories:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete all PYP categories',
+      error: error.message,
+    });
+  }
+};
+
+
+
 export default {
   createPYPCategory,
   getAllPYPCategories,
   getPYPCategoryById,
   updatePYPCategory,
-  deletePYPCategory
+  deletePYPCategory,
+  deleteAllPYPCategories
 };

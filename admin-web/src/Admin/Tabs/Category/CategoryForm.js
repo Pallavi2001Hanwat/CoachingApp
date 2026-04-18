@@ -34,10 +34,10 @@ const CategoryForm = ({ isEditMode = false }) => {
             const loadCategory = async () => {
 
                 try {
-debugger
+                    debugger
                     const response = await getCategoryById(id);
-console.log('Fetched category:', response);
-                 //  showResponseMessage(response.message);
+                    console.log('Fetched category:', response);
+                    //  showResponseMessage(response.message);
 
                     if (!response.category) return;
 
@@ -145,12 +145,13 @@ console.log('Fetched category:', response);
 
             if (isEditMode) {
                 response = await updateCategory(id, formData);
+                
                 console.log('Update response:', response.message);
             } else {
                 response = await addCategory(formData);
             }
 
-           showResponseMessage(response);
+            showResponseMessage(response);
 
             if (response.success) {
 
